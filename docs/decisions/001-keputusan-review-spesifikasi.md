@@ -19,6 +19,7 @@ Versi 0.3 cara kerja dan versi 1.2 logika isolir memakai tiga default isolir, sa
 - Bonus teknisi tidak timbul dari tiket yang tertutup karena agenda massal.
 - Failover server, replikasi database, dan restore SQL adalah prosedur infrastruktur, bukan modul aplikasi.
 - Impor pelanggan lama memakai `isolir_mulai_evaluasi`. Mutasi uang yang dibatalkan menulis jurnal balik.
+- Cuti tidak menagih tanggal cuti. Tagihan periode berjalan dipotong sampai sehari sebelum `cuti_mulai`. Aktif kembali di tengah bulan membuat tagihan prorata tersendiri sampai akhir bulan, dan tagihan itu masuk tunggakan.
 
 ## Konsekuensi
 

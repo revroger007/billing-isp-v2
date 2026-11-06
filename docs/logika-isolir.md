@@ -1,6 +1,6 @@
 # Spesifikasi Logika Isolir
 
-> Versi: 1.5 | Tanggal: 6 November 2026
+> Versi: 1.6 | Tanggal: 6 November 2026
 > Sistem: pra-bayar
 > Mekanisme: IP statis dimasukkan ke address-list Mikrotik. Semua pelanggan memakai IP statis. Kolom `tipe_koneksi` hanya catatan teknis dan tidak mengubah cara isolir.
 
@@ -23,7 +23,7 @@ Scheduler juga melewati pelanggan bila salah satu ini berlaku:
 
 - `tanggal_instalasi` masih kosong
 - hari ini masih sebelum `isolir_mulai_evaluasi` (dipakai setelah impor data lama)
-- hari ini berada di antara `cuti_mulai` dan `cuti_selesai`, termasuk kedua tanggal itu
+- hari ini berada di antara `cuti_mulai` dan `cuti_selesai`, termasuk kedua tanggal itu. Cuti memotong tagihan periode berjalan menjadi prorata dan, saat aktif kembali di tengah bulan, menambah satu tagihan prorata baru. Kedua tagihan itu tetap dihitung tunggakan. Aturan pemecahannya ada di `docs/cara-kerja.md`.
 - `bypass_until` terisi dan tanggal hari ini di Asia/Jakarta masih sebelum atau sama dengan `bypass_until`
 
 Job harian berjalan pukul 00:05 Asia/Jakarta. Tanggal yang dibandingkan adalah tanggal kalender Jakarta, bukan tanggal UTC.

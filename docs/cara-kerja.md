@@ -67,11 +67,11 @@ flowchart TD
 | **Kredensial Superadmin Router (Role-Based Security)** | **User & Password Superadmin (Master):**<br>Kredensial login tingkat tinggi ke web GUI modem pelanggan (misal: `admin / telecomadmin` atau custom ISP).<br>• 🔒 **Teknisi DILARANG Mengakses:** Kolom disembunyikan/diberi tanda sensor hitam dari layar akun Teknisi demi keamanan (mencegah bocornya password master ISP).<br>• 🟢 **NOC / Super Admin DAPAT Mengakses:** Dibuka penuh untuk tim NOC saat remote konfigurasi. |
 | **Akses Teknisi Saat Perbaikan & Tombol WA** | **Kemudahan Teknisi di Lapangan:**<br>Saat menerima tiket servis/perbaikan, teknisi dapat langsung membuka tab data teknis (melihat SSID, password WiFi, merk alat, tanggal pasang, dan mengunduh file backup config).<br>• **Tombol `[📲 Hubungi Pelanggan via WA]`:** Satu sentuhan di HP teknisi langsung membuka chat WhatsApp ke pelanggan bersangkutan untuk konfirmasi janji temu atau laporan kedatangan. |
 | **Alur Request Penggantian SSID & Password WiFi** | **Prosedur Terverifikasi Anti-Salah Setting:**<br>1. **Pengajuan:** Admin Wilayah atau Teknisi di lapangan membuka form *Request Ubah WiFi* $\rightarrow$ input SSID Baru & Password Baru $\rightarrow$ status `menunggu_verifikasi_noc`.<br>2. **Validasi & Eksekusi NOC:** NOC memvalidasi permintaan, lalu mengeksekusi via API TR-069 GenieACS (atau konfigurasi manual).<br>3. **Pembaruan Otomatis:** Begitu NOC menekan **`[Verifikasi & Simpan]`**, data SSID & password baru otomatis tersimpan permanen di database pelanggan dan dicatat dalam riwayat perubahan. |
-| **Status Cuti / Suspend Sementara (*Seasonal Freeze*)** | Selama `cuti_mulai` sampai `cuti_selesai` (kedua tanggal termasuk), scheduler tidak menerbitkan tagihan langganan dan tidak mengevaluasi isolir. Tidak ada biaya sewa port tersembunyi. Besok setelah `cuti_selesai`, tagihan dan isolir berjalan normal. |
+| **Status Cuti / Suspend Sementara (*Seasonal Freeze*)** | Selama `cuti_mulai` sampai `cuti_selesai` (kedua tanggal termasuk), scheduler tidak menerbitkan tagihan langganan bulan penuh dan tidak mengevaluasi isolir. Tidak ada biaya sewa port. Tagihan periode yang sedang berjalan dipotong prorata, dan hari aktif kembali ditagih prorata tersendiri. Lihat bagian pemecahan tagihan saat cuti. |
 | **Paket Layanan** | Harga paket adalah integer rupiah yang sudah termasuk PPN. Itu nominal yang ditagih, dipotong dompet, dan dicetak. Tidak ada perhitungan PPN kedua di kasir. |
 | **Mikrotik (Many-to-Many)** | Terhubung ke 1 atau banyak Mikrotik via tabel pivot `pelanggan_mikrotik` (IP statis per link) |
 | **Mode Isolir** | Pelanggan baru: `isolir_enabled = true` dan `mode_isolir = dua_tunggakan` (isolir bila tagihan langganan belum lunas mencapai 2). Opsi lain: `jatuh_tempo`, `tidak_isolir`, `prepaid_30hari`. Tidak ada mode bernama `default`. Rincian ada di `docs/logika-isolir.md`. |
-| **Jatuh Tempo & Prorata** | Jatuh tempo default tanggal 11 pukul 00:00 Asia/Jakarta. Prorata pelanggan pasang baru: `harga_paket x hari_layanan / jumlah_hari_periode`, dibulatkan ke rupiah terdekat (0,5 ke atas). Hari pemasangan dihitung. Tagihan berikut memakai harga penuh. |
+| **Jatuh Tempo & Prorata** | Jatuh tempo default tanggal 11 pukul 00:00 Asia/Jakarta. Prorata pasang baru, potongan cuti, dan aktif kembali memakai rumus yang sama: `harga_paket x hari_layanan / jumlah_hari_periode`, dibulatkan ke rupiah terdekat (0,5 ke atas). Hari pertama layanan pada potongan itu dihitung. `jumlah_hari_periode` adalah jumlah hari kalender bulan tagihan. |
 
 ---
 
@@ -115,14 +115,58 @@ flowchart TD
 | Fitur | Keterangan |
 |---|---|
 | **Format No. Tagihan** | `INV-YYYY-MM-XXXX` (contoh: `INV-2026-11-0001`). Nomor diambil dari sequence per periode di dalam transaksi database. Nomor yang sudah terbit tidak dipakai ulang, termasuk tagihan yang dibatalkan. |
-| **Generate Otomatis & Manual** | 1. **Otomatis bulanan:** satu tagihan `langganan` per pelanggan per periode. Unique `(pelanggan_id, periode, tipe_invoice)` menolak tagihan ganda.<br>2. **Invoice manual:** biaya di luar langganan (penggantian router, denda) menjadi tagihan `manual` dan tidak dihitung `jatuh_tempo` atau `dua_tunggakan`.<br>3. Tagihan punya baris. `nominal` adalah jumlah baris. `sisa` selalu `nominal - terbayar`, dijaga constraint. |
+| **Generate Otomatis & Manual** | 1. **Otomatis bulanan:** satu tagihan `langganan` untuk satu rentang layanan. Unique `(pelanggan_id, tipe_invoice, layanan_mulai)` menolak rentang yang sama terbit dua kali. Satu bulan kalender boleh punya dua tagihan langganan bila cuti memotong bulan itu.<br>2. **Invoice manual:** biaya di luar langganan (penggantian router, denda) menjadi tagihan `manual` dan tidak dihitung `jatuh_tempo` atau `dua_tunggakan`.<br>3. Tagihan punya baris. `nominal` adalah jumlah baris. `sisa` selalu `nominal - terbayar`, dijaga constraint. |
 | **Link Invoice Publik** | Token acak 128 bit, unik, dan dapat diputar bila bocor. Contoh bentuk: `https://billing.isp.com/inv/` diikuti 32 karakter hex. Halaman tanpa login hanya menampilkan nomor tagihan, nama depan, nominal, status, dan jatuh tempo. |
 | **Aksi "Kirim Invoice" (Direct WA)** | Di halaman admin, terdapat tombol **[📲 Kirim Invoice]**: Saat diklik, browser **langsung membuka aplikasi WhatsApp** (atau WhatsApp Web) ke nomor HP pelanggan dengan pesan siap kirim yang sudah terisi otomatis (nama, rincian tagihan, batas bayar, dan link invoice publik). |
 | **Riwayat Lengkap di Portal** | Seluruh riwayat tagihan masa lalu (lunas, belum bayar, cicilan) tersusun rapi di **Portal Pelanggan** setelah pelanggan melakukan login. |
 | **Jatuh Tempo Default** | Tanggal 11 pukul 00:00 Asia/Jakarta. Nilainya kolom `date`, bukan timestamp UTC. |
 | **Status Tagihan** | `belum_bayar`, `sebagian`, `menunggu_verifikasi`, `lunas`, `batal`. Batal wajib menulis audit nilai sebelum dan sesudah. |
 | **Mekanisme Parsial** | `nominal`, `terbayar`, dan `sisa` disimpan sebagai integer rupiah dan diubah dalam satu transaksi. |
-| **Status Tunggakan** | Tagihan langganan berstatus `belum_bayar`, `sebagian`, atau `menunggu_verifikasi` masing-masing dihitung satu tunggakan sampai lunas. |
+| **Status Tunggakan** | Tagihan langganan berstatus `belum_bayar`, `sebagian`, atau `menunggu_verifikasi` masing-masing dihitung satu tunggakan sampai lunas. Potongan sebelum cuti dan prorata aktif kembali adalah dua tagihan terpisah, keduanya masuk daftar tunggakan selama belum lunas. |
+
+#### Pemecahan tagihan saat cuti
+
+Tanggal `cuti_mulai` sampai `cuti_selesai` tidak ditagih. Layanan sebelum cuti dan layanan setelah aktif kembali menjadi tagihan langganan yang terpisah. Keduanya tetap tampil di daftar tunggakan selama belum lunas. Tagihan bulan lain yang sudah terbit tidak diubah.
+
+Saat suspend disimpan:
+
+- Tagihan langganan yang rentangnya memuat `cuti_mulai` dipotong. `layanan_selesai` menjadi sehari sebelum `cuti_mulai`. Nomor tagihan tidak berubah. Nominal dihitung ulang dengan rumus prorata. Audit menyimpan nominal lama dan nominal baru.
+- Jika tidak ada hari layanan tersisa, tagihan itu menjadi `batal` dan tidak dihitung tunggakan. Uang yang sudah masuk di atas nominal baru kembali ke dompet pelanggan lewat mutasi.
+- Jika `terbayar` lebih kecil dari nominal baru, status tetap `belum_bayar` atau `sebagian`. `sisa` dihitung ulang.
+
+Saat aktif kembali, tanggal aktivasi adalah sehari setelah `cuti_selesai`:
+
+- Jika tanggal itu jatuh pada tanggal 1, scheduler menerbitkan tagihan bulan penuh seperti biasa.
+- Jika tanggal itu jatuh di tengah bulan, sistem menerbitkan tagihan langganan baru untuk tanggal aktivasi sampai hari terakhir bulan itu. Hari aktivasi dihitung, sama seperti hari pasang pelanggan baru.
+- Jika tanggal jatuh tempo bulan itu sudah lewat, jatuh tempo tagihan prorata ini adalah tanggal aktivasi. Tagihan langsung masuk tunggakan sampai dibayar.
+- Bulan berikutnya kembali harga penuh, selama pelanggan tidak cuti lagi.
+
+`masa_aktif_hingga` tidak digeser oleh cuti. Mode `prepaid_30hari` tetap membaca tanggal itu setelah cuti berakhir.
+
+Contoh, harga paket Rp150.000. September belum bayar. November memiliki 30 hari.
+
+```
+September, layanan 1-30:     Rp150.000  belum bayar
+1 November terbit penuh:     Rp150.000  belum bayar
+Jumlah tunggakan saat itu:   2 tagihan
+
+Cuti 10-22 November
+Tagihan November dipotong ke layanan 1-9:
+  150.000 x 9 / 30 = 45.000
+Nomor tagihan November tidak berubah
+
+Aktif kembali 23 November
+Tagihan baru, layanan 23-30:
+  150.000 x 8 / 30 = 40.000
+Jatuh tempo tagihan ini 23 November
+
+Tunggakan yang tercatat bila belum dibayar:
+  September 1-30     Rp150.000
+  November 1-9       Rp45.000
+  November 23-30     Rp40.000
+```
+
+Selama cuti, isolir tidak dievaluasi walaupun jumlah tunggakan sudah 2. Setelah 23 November, evaluasi jalan lagi. Tiga tagihan langganan yang belum lunas membuat mode `dua_tunggakan` mengisolir pada job berikutnya.
 
 ---
 
@@ -1150,6 +1194,8 @@ erDiagram
         bigint terbayar
         bigint sisa
         date jatuh_tempo
+        date layanan_mulai
+        date layanan_selesai
         string status
         string kategori_tunggakan
         string status_penagihan
