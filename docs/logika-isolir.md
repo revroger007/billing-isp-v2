@@ -1,193 +1,169 @@
 # Spesifikasi Logika Isolir
 
-> Versi: 2.1 | Tanggal: 6 November 2026
+> Versi: 2.2 | Tanggal: 6 November 2026
 > Sistem: pra-bayar
 > Mekanisme: IP statis dimasukkan ke address-list Mikrotik. Semua pelanggan memakai IP statis. Kolom `tipe_koneksi` hanya catatan teknis dan tidak mengubah cara isolir.
 
-Aturan di dokumen ini mengalahkan diagram atau kalimat lama yang masih membedakan PPPoE, Hotspot, dan IP sesi.
+Aturan di dokumen ini mengalahkan diagram atau kalimat lama yang masih memakai `isolir_enabled`, `bypass_until`, `isolir_sementara`, `masa_aktif_hingga`, atau `prepaid_30hari`.
 
 ## Dua pengaturan
 
-Isolir hanya memutus atau menyalakan layanan. Prorata, diskon, bulan tanpa tagihan, dan kuitansi diatur di `docs/cara-kerja.md`.
+Isolir hanya memutus atau menyalakan layanan. Prorata dan kuitansi diatur di `docs/cara-kerja.md`. Tagihan langganan hanya menghitung hari layanan. Hari cuti dan hari `putus` tidak ditagih, sehingga bulan tanpa hari layanan tidak punya invoice dan tidak punya kuitansi.
 
-Pelanggan baru: `isolir_enabled = true`, `batas_tunggakan = 2`, `siklus_tagihan = tetap`.
+Pelanggan baru: `batas_tunggakan = 2`, `siklus_tagihan = tanggal_tetap`.
 
 | Pengaturan | Nilai | Arti |
 |---|---|---|
-| `batas_tunggakan` | `null`, `1`, `2` | `null` berarti tidak pernah diisolir scheduler. `1` memutus bila ada satu tagihan langganan lewat jatuh tempo. `2` adalah bawaan. |
-| `siklus_tagihan` | `tetap`, `prepaid_30hari` | `tetap` tidak menggeser tanggal jatuh tempo. `prepaid_30hari` menggeser isolir berikutnya dari tanggal bayar ditambah 30 hari. |
+| `batas_tunggakan` | `null`, `1`, `2` | `null` berarti scheduler tidak pernah memutus. `1` memutus bila ada satu tagihan langganan lewat jatuh tempo. `2` adalah bawaan. |
+| `siklus_tagihan` | `tanggal_tetap`, `prabayar` | `tanggal_tetap` tidak menggeser `hari_isolir`. `prabayar` mengisi `isolir_berikutnya` dari tanggal bayar ditambah 30 hari, kecuali pembayaran terjadi selama penundaan toleransi. |
 
-`batas_tunggakan = null` tampil di layar sebagai Tidak pernah. Isolir manual tetap menunggu reaktivasi manual.
+`batas_tunggakan = null` tampil di layar sebagai Tidak pernah. Isolir manual tetap menunggu nyala manual.
 
-`isolir_enabled = false` hanya menghentikan isolir otomatis oleh scheduler. Flag ini tidak memblokir isolir manual dan tidak memblokir reaktivasi. Pelanggan yang diisolir scheduler lalu flag-nya dimatikan dievaluasi pada jalan scheduler berikutnya: jika mode tidak lagi menuntut isolir, layanan dibuka.
+Scheduler hanya memutus bila tanggal hari ini di Asia/Jakarta sudah mencapai `isolir_berikutnya` dan syarat siklus terpenuhi. `hari_isolir` adalah angka 1 sampai 31 yang dipakai untuk menghitung tanggal itu. `isolir_berikutnya` adalah satu-satunya tanggal yang dibaca scheduler.
 
-Scheduler juga melewati pelanggan bila salah satu ini berlaku:
+Scheduler melewati pelanggan bila salah satu ini berlaku:
 
 - `tanggal_instalasi` masih kosong
-- hari ini masih sebelum `isolir_mulai_evaluasi` (dipakai setelah impor data lama)
-- hari ini berada di antara `cuti_mulai` dan `cuti_selesai`, termasuk kedua tanggal itu. Cuti memotong tagihan periode berjalan menjadi prorata dan, saat aktif kembali di tengah bulan, menambah satu tagihan prorata baru. Kedua tagihan itu tetap dihitung tunggakan. Aturan pemecahannya ada di `docs/cara-kerja.md`.
-- `bypass_until` terisi dan tanggal hari ini di Asia/Jakarta masih sebelum atau sama dengan `bypass_until`
+- hari ini masih sebelum `isolir_mulai_evaluasi`
+- hari ini berada di dalam cuti, termasuk `cuti_mulai` dan `cuti_selesai`
+- `isolir_ditunda_hingga` terisi dan hari ini masih sebelum tanggal itu
+
+Pada tanggal `isolir_ditunda_hingga` sendiri, job pukul 00:05 mengisolir bila pembayaran yang membatalkan penundaan belum tercatat. Pembayaran yang masuk kemudian pada hari yang sama tetap diproses dan dapat menyalakan layanan lagi.
 
 Job harian berjalan pukul 00:05 Asia/Jakarta. Tanggal yang dibandingkan adalah tanggal kalender Jakarta, bukan tanggal UTC.
 
+## Tiga fungsi
+
+`hitung_isolir_berikutnya` hanya menghitung tanggal dan jumlah tunggakan. Pembayaran, cuti, toleransi, bypass, dan tombol simulasi memanggil fungsi ini. Fungsi ini tidak menghubungi Mikrotik.
+
+`putuskan_layanan` dan `nyalakan_layanan` adalah satu-satunya fungsi yang menulis address-list. Keduanya mencatat hasil per router. Status pelanggan menjadi `putus` atau `nyala` hanya setelah semua router yang dituju sukses.
+
 ## Status yang dihitung tunggakan
 
-Hanya tagihan `tipe_invoice = langganan` yang tanggal jatuh temponya sudah sampai. Biaya pasang, denda, dan invoice manual tidak dihitung dan tidak memperpanjang `prepaid_30hari`. Bulan yang tidak diterbitkan tidak dihitung lunas dan tidak membuka isolir.
+Hanya tagihan `tipe_invoice = langganan` yang tanggal jatuh temponya sudah sampai. Biaya pasang, denda, dan invoice manual tidak dihitung dan tidak memperpanjang siklus `prabayar`. Bulan yang tidak diterbitkan tidak dihitung lunas dan tidak menyalakan layanan.
 
-Satu tagihan dihitung tunggakan bila statusnya `belum_bayar`, `sebagian`, atau `menunggu_verifikasi`. Status `sebagian` tetap satu tunggakan sampai `sisa = 0`. `menunggu_verifikasi` tetap tunggakan sampai admin menyetujui pembayaran. Unggah bukti tidak membuka isolir.
+Satu tagihan dihitung tunggakan bila statusnya `belum_bayar`, `sebagian`, atau `menunggu_verifikasi`. Status `sebagian` tetap satu tunggakan sampai `sisa = 0`. Unggah bukti tidak menyalakan layanan.
 
-## Siklus tetap
+## Siklus tanggal_tetap
 
-`batas_tunggakan = null` membuat scheduler melewati isolir otomatis. Bila isolir sebelumnya berasal dari scheduler, jalan berikutnya membuka layanan. Isolir manual tidak ikut terbuka.
+`batas_tunggakan = null` membuat scheduler melewati putus otomatis. Bila putus sebelumnya berasal dari scheduler, jalan berikutnya menyalakan layanan. Putus manual tidak ikut terbuka.
 
 ```
 jumlah = jumlah tagihan langganan yang belum lunas dan jatuh temponya sudah sampai
 
-Jika batas_tunggakan berisi 1 atau 2:
-    Jika jumlah >= batas dan pelanggan belum terisolir:
-        isolir
-    Jika jumlah < batas dan pelanggan terisolir oleh scheduler:
-        reaktivasi
+Jika batas_tunggakan berisi 1 atau 2 dan hari ini >= isolir_berikutnya:
+    Jika jumlah >= batas dan pelanggan belum putus:
+        putuskan_layanan
+    Jika jumlah < batas dan pelanggan putus oleh scheduler:
+        nyalakan_layanan
 ```
 
-Tagihan lama ikut dihitung. Satu tagihan September yang lewat jatuh tempo memutus pelanggan dengan batas 1, walaupun tagihan bulan ini sudah lunas. Pada batas 2, membayar satu dari dua tagihan sudah cukup untuk membuka isolir. Tanggal jatuh tempo tidak bergeser.
+Tagihan lama ikut dihitung. Satu tagihan September yang lewat jatuh tempo memutus pelanggan dengan batas 1, walaupun tagihan bulan ini sudah lunas. Pada batas 2, membayar satu dari dua tagihan sudah cukup untuk menyalakan layanan. `hari_isolir` tidak bergeser.
 
-`diskon_selama_isolir` hanya untuk siklus `tetap`. Default-nya mati. Bila menyala, hari tanpa layanan karena isolir mengurangi nominal tagihan langganan yang menaungi hari itu. Rumusnya sama dengan prorata. Hasilnya satu baris `diskon_isolir`, dihitung ulang, bukan ditambah berulang.
+Tombol simulasi hanya pratinjau. Simulasi tidak mengubah `status_isolir` dan tidak menyimpan `isolir_berikutnya`.
 
-Hari diskon adalah tanggal `status_isolir = diisolir` sepanjang hari itu, termasuk hari isolir mulai. Hari reaktivasi tidak dihitung. Hari yang sudah dikeluarkan karena cuti tidak didiskon lagi. Nominal tidak turun di bawah nol. Kelebihan pembayaran masuk dompet. Diskon tidak memindahkan tanggal jatuh tempo.
+## Siklus prabayar
 
-Contoh, batas 1, jatuh tempo tanggal 10, harga Rp150.000, Oktober 31 hari, diskon menyala:
-
-```
-10 Oktober, satu tagihan lewat jatuh tempo -> isolir
-15 Oktober, tagihan lunas -> reaktivasi
-Hari diskon = 10-14 Oktober (5 hari)
-Diskon = 150.000 x 5 / 31 = Rp24.194
-Tagihan Oktober menjadi Rp125.806
-Jatuh tempo November tetap tanggal 10
-```
-
-Tombol simulasi di halaman admin hanya pratinjau. Simulasi tidak mengubah `status_isolir` dan tidak menyimpan `masa_aktif_hingga`.
-
-## prepaid_30hari
-
-`masa_aktif_hingga` adalah tanggal kalender terakhir layanan boleh nyala. Perpanjangan selalu `N x 30` hari kalender, bukan tambah satu bulan. Contoh: 31 Januari ditambah 30 hari menjadi 2 Maret. 15 Februari 2026 ditambah 30 hari menjadi 17 Maret 2026.
+Di luar penundaan toleransi, perpanjangan adalah `N x 30` hari kalender, bukan tambah satu bulan. Contoh: 31 Januari ditambah 30 hari menjadi 2 Maret. 15 Februari 2026 ditambah 30 hari menjadi 17 Maret 2026.
 
 ```
-Jika tanggal hari ini >= masa_aktif_hingga dan pelanggan belum terisolir:
-    isolir
+Jika hari ini >= isolir_berikutnya dan pelanggan belum putus:
+    putuskan_layanan
 
-Jika pelanggan masih aktif saat bayar:
-    masa_aktif_hingga = masa_aktif_hingga + (N x 30 hari)
-Jika pelanggan sedang terisolir saat bayar:
-    masa_aktif_hingga = tanggal pembayaran (Asia/Jakarta) + (N x 30 hari)
-    reaktivasi
+Jika pelanggan masih nyala saat bayar:
+    isolir_berikutnya = isolir_berikutnya + (N x 30 hari)
+Jika pelanggan sedang putus saat bayar dan tidak sedang ditunda:
+    isolir_berikutnya = tanggal pembayaran + (N x 30 hari)
+    nyalakan_layanan
 ```
 
-Pembayaran selama `isolir_sementara` tidak memakai rumus 30 hari itu. Tanggal berikutnya mengikuti `hari_isolir`, seperti pada bagian toleransi sementara.
-
-Pada tanggal `masa_aktif_hingga` itu sendiri, job pukul 00:05 WIB sudah mengisolir. Simulasi lama yang memakai operator `>` salah. Contoh yang berlaku:
+Pada tanggal `isolir_berikutnya` itu sendiri, job pukul 00:05 WIB sudah memutus. Contoh:
 
 ```
-15 September bayar 1 bulan saat terisolir
-    masa_aktif_hingga = 15 Oktober
-    reaktivasi
+15 September bayar 1 bulan saat putus
+    isolir_berikutnya = 15 Oktober
+    layanan dinyalakan
 
-10 Oktober bayar 1 bulan saat masih aktif
-    masa_aktif_hingga = 14 November
+10 Oktober bayar 1 bulan saat masih nyala
+    isolir_berikutnya = 14 November
 
 14 November, job 00:05 WIB
-    tanggal hari ini >= 14 November -> isolir
+    hari ini >= 14 November -> putus
 
-20 November bayar 1 bulan saat terisolir
-    masa_aktif_hingga = 20 Desember
-    reaktivasi
+20 November bayar 1 bulan saat putus
+    isolir_berikutnya = 20 Desember
+    layanan dinyalakan
 ```
 
-Jika nominal mencakup dua bulan atau lebih, admin atau kolektor memilih:
+Jika nominal mencakup dua bulan atau lebih, admin atau kolektor memilih cicil tunggakan (`N = 1`) atau bayar tagihan rutin (`N` = jumlah bulan). Sisa tagihan tetap menunggak. `batas_tunggakan` tidak dibaca selama siklus ini. Bila siklus dikembalikan ke `tanggal_tetap`, tunggakan yang tersisa langsung dipakai.
 
-| Opsi | N | Alokasi uang |
-|---|---|---|
-| Cicil tunggakan | 1 | Satu bulan memperpanjang masa aktif. Sisa melunasi tagihan langganan terlama. |
-| Bayar tagihan rutin | jumlah bulan yang dibayar | Setiap bulan memperpanjang masa aktif dan melunasi satu tagihan terlama. |
-
-Tagihan yang tidak tertutup alokasi tetap menunggak. `prepaid_30hari` tidak mengisolir karena jumlah tunggakan. `batas_tunggakan` tidak dibaca selama siklus ini. Bila siklus dikembalikan ke `tetap`, tunggakan yang tersisa langsung dipakai.
+Pembayaran selama penundaan beralasan `toleransi` tidak memakai rumus 30 hari. `isolir_berikutnya` diisi tanggal `hari_isolir` berikutnya.
 
 ## Banyak Mikrotik
 
-Setiap router pelanggan punya satu baris log. IP selalu diambil dari `pelanggan_mikrotik.ip_address`. Perintah ke router idempotent: menambah IP yang sudah ada, atau menghapus IP yang sudah tidak ada, dihitung sukses.
+Setiap router pelanggan punya satu baris log. IP selalu diambil dari `pelanggan_mikrotik.ip_address`. Perintah ke router idempotent. Nama address-list, misalnya `isolir`, harus sudah dipakai oleh aturan firewall di Mikrotik. Billing menyimpan nama daftar itu dan tidak membuat aturan firewall.
 
 `status_isolir` pelanggan diturunkan dari log router yang dituju:
 
 | Kondisi log | `status_isolir` |
 |---|---|
-| Masih ada router yang dicoba ulang | `menunggu_sinkron` |
-| Semua router sukses menambah IP | `diisolir` |
-| Semua router sukses menghapus IP | `aktif` |
+| Masih ada router yang dicoba ulang | `menunggu_router` |
+| Semua router sukses menambah IP | `putus` |
+| Semua router sukses menghapus IP | `nyala` |
 | Sebagian router sukses dan percobaan habis | `sebagian` |
-| Semua router gagal saat isolir dan percobaan habis | `gagal_isolir` |
-| Semua router gagal saat buka dan percobaan habis | `gagal_reaktivasi` |
+| Semua router gagal saat memutus dan percobaan habis | `gagal_putus` |
+| Semua router gagal saat menyalakan dan percobaan habis | `gagal_nyala` |
 
-Pelanggan tidak ditandai `diisolir` atau `aktif` sebelum semua router yang dituju sukses. Selama `menunggu_sinkron` atau `sebagian`, layar admin menunjukkan router mana yang belum sama dengan database.
+Pelanggan tidak ditandai `putus` atau `nyala` sebelum semua router yang dituju sukses. Hari `sebagian` bukan hari putus, sehingga tidak mengurangi tagihan. Percobaan otomatis 10 kali termasuk percobaan pertama, jeda 5 menit, hanya untuk router yang gagal. Router yang sudah sukses tidak diubah lagi.
 
-Percobaan otomatis: 10 kali termasuk percobaan pertama, jeda 5 menit, hanya untuk router yang gagal. Setelah habis, kirim alert ke dashboard, email, dan Telegram. Tombol ulang ada di halaman pelanggan dan di daftar alert. Router yang sudah sukses tidak diubah lagi.
+## Penundaan isolir
 
-## Toleransi sementara
+`isolir_ditunda_hingga` adalah satu-satunya tanggal penundaan. `alasan_penundaan` berisi `toleransi` atau `bypass`. Penundaan baru menggantikan penundaan lama, dan audit menyimpan keduanya.
 
-Pelanggan yang sudah `diisolir` dapat diberi toleransi beberapa hari. Ini berlaku untuk setiap `batas_tunggakan` dan kedua `siklus_tagihan`.
+Toleransi dipakai saat pelanggan sudah `putus`. Admin mengisi jumlah hari dan keterangan, tanpa persetujuan kedua.
 
-Admin mengisi jumlah hari dan keterangan. Sistem menyimpan tanggal isolir yang sedang berlaku, lalu:
+- `isolir_ditunda_hingga` = tanggal isolir terakhir ditambah jumlah hari kalender
+- `nyalakan_layanan` dipanggil
+- `hari_isolir` tidak diubah
 
-- `isolir_sementara` = tanggal isolir terakhir ditambah jumlah hari kalender
-- layanan dinyalakan kembali lewat alur reaktivasi yang sama
-- tanggal isolir tetap, yaitu `hari_isolir`, tidak diubah
+Contoh: isolir terakhir 5 November, toleransi 5 hari. `isolir_ditunda_hingga` menjadi 10 November. 28 November ditambah 5 hari menjadi 3 Desember.
 
-Contoh: isolir terakhir 5 November, toleransi 5 hari. `isolir_sementara` menjadi 10 November dan status tujuan adalah `aktif`. 28 November ditambah 5 hari menjadi 3 Desember.
+Bila pelanggan membayar 1 bulan pada atau sebelum tanggal itu, penundaan dihapus. `isolir_berikutnya` menjadi tanggal `hari_isolir` yang pertama sesudah tanggal bayar. Pembayaran 10 November dengan `hari_isolir` 5 menghasilkan 5 Desember, bukan 10 Desember dan bukan 10 November ditambah 30 hari. Dua bulan memajukan dua tanggal `hari_isolir`. Pembayaran pada tanggal 5 sendiri memajukan ke tanggal 5 bulan berikutnya. Aturan ini berlaku untuk semua batas dan kedua siklus. Sisa tagihan yang belum tertutup tetap tersimpan. Sesudah `isolir_berikutnya`, batas dan siklus berjalan seperti biasa.
 
-Sampai tanggal `isolir_sementara`, scheduler tidak mengisolir walaupun tunggakan masih melewati batas atau `masa_aktif_hingga` sudah lewat. Pada tanggal itu, bila belum ada pembayaran 1 bulan selama toleransi, pelanggan diisolir lagi dan `isolir_sementara` dikosongkan. `hari_isolir` tetap 5.
+Bypass diajukan Admin Wilayah dan disetujui Admin Global. Pengaju tidak boleh menyetujui permintaannya sendiri. Bila disetujui, `isolir_ditunda_hingga` diisi tanggal yang diminta dan `alasan_penundaan = bypass`, lalu `nyalakan_layanan` dipanggil bila pelanggan sedang putus. Bila API gagal, permintaan tetap `disetujui` dan `status_isolir` menjadi `menunggu_router` atau `gagal_nyala`. Layar tidak boleh mengaku layanan sudah nyala sebelum semua router sukses.
 
-Bila pelanggan membayar 1 bulan pada atau sebelum `isolir_sementara`, tanggal sementara dihapus. Isolir berikutnya adalah tanggal `hari_isolir` yang pertama sesudah tanggal bayar. Pembayaran 10 November dengan `hari_isolir` 5 menghasilkan isolir berikutnya 5 Desember, bukan 10 Desember dan bukan 10 November ditambah 30 hari. Dua bulan memajukan dua tanggal `hari_isolir`. Pembayaran pada tanggal 5 sendiri memajukan ke tanggal 5 bulan berikutnya.
+## Isolir manual
 
-Pada `prepaid_30hari`, `masa_aktif_hingga` diisi dengan tanggal isolir berikutnya itu. Pada siklus `tetap`, tanggal jatuh tempo tidak pindah. Scheduler tidak mengisolir sebelum tanggal itu. Sesudah tanggal itu, batas tunggakan dan siklus berjalan seperti biasa. Sisa tagihan yang belum tertutup tetap tersimpan.
-
-Toleransi baru dihitung lagi dari tanggal isolir terakhir, bukan dari `isolir_sementara` yang lama, supaya tanggal tetap tidak bergeser. Permintaan ini bukan bypass dan tidak menunggu persetujuan kedua.
-
-## Isolir manual dan bypass
-
-Admin Global dan Admin Wilayah boleh mengisolir manual walaupun `isolir_enabled = false`. Aksi ini menulis `sumber_isolir = manual` dan wajib berisi keterangan. Modal konfirmasi menampilkan nama pelanggan, IP, dan setiap Mikrotik yang dituju.
-
-Pembayaran tidak menghapus isolir manual. Yang membuka isolir manual adalah reaktivasi oleh Admin Global, atau bypass yang disetujui Admin Global. Pengaju tidak boleh menyetujui permintaannya sendiri.
-
-Bypass menyimpan `bypass_until`, `bypass_approved_by`, dan `bypass_note`. Selama tanggal hari ini masih sebelum atau sama dengan `bypass_until`, scheduler tidak mengisolir. Besoknya mode berjalan normal. Jika API gagal saat bypass disetujui, status permintaan tetap `disetujui` dan `status_isolir` menjadi `menunggu_sinkron` atau `gagal_reaktivasi`. Layar tidak boleh mengaku layanan sudah nyala sebelum semua router sukses.
+Admin Global dan Admin Wilayah boleh memutus manual walaupun `batas_tunggakan` kosong. Aksi ini menulis `sumber_putus = manual` dan wajib berisi keterangan. Modal konfirmasi menampilkan nama pelanggan, IP, dan setiap Mikrotik yang dituju. Pembayaran tidak menghapus putus manual. Yang menyalakan kembali adalah Admin Global, atau penundaan yang sudah disetujui.
 
 ## Pindah pengaturan
 
-Pengaturan baru berlaku pada penyimpanan. Perubahan menulis audit: nilai lama, nilai baru, dan pelaku.
+Pengaturan baru berlaku pada penyimpanan. Perubahan menulis audit.
 
-- Ke `prepaid_30hari`: admin wajib mengisi `masa_aktif_hingga`. `next_isolir_at` dihitung ulang. `diskon_selama_isolir` tidak dipakai.
-- Kembali ke `tetap`: `masa_aktif_hingga` dikosongkan. `next_isolir_at` dihitung dari `batas_tunggakan` dan tagihan yang ada.
-- Status isolir yang sedang berjalan tidak dihapus diam-diam. Scheduler berikutnya membuka atau mempertahankan isolir sesuai pengaturan baru.
+- Ke `prabayar`: admin wajib mengisi `isolir_berikutnya`.
+- Kembali ke `tanggal_tetap`: `isolir_berikutnya` dihitung dari `hari_isolir` dan tagihan yang ada.
+- Status yang sedang berjalan tidak dihapus diam-diam. Scheduler berikutnya yang memutuskan.
 
 ## State
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Aktif: Pelanggan terpasang
+    [*] --> Nyala: Pelanggan terpasang
 
-    Aktif --> MenungguSinkron: Syarat isolir terpenuhi
-    MenungguSinkron --> Diisolir: Semua router sukses
-    MenungguSinkron --> Sebagian: Percobaan habis, hasil router campuran
-    MenungguSinkron --> GagalIsolir: Semua router gagal isolir
-    MenungguSinkron --> Aktif: Syarat isolir gugur sebelum router selesai
+    Nyala --> MenungguRouter: Syarat putus terpenuhi
+    MenungguRouter --> Putus: Semua router sukses
+    MenungguRouter --> Sebagian: Percobaan habis, hasil router campuran
+    MenungguRouter --> GagalPutus: Semua router gagal memutus
+    MenungguRouter --> Nyala: Syarat putus gugur sebelum router selesai
 
-    Diisolir --> MenungguSinkron: Syarat buka terpenuhi
-    Sebagian --> MenungguSinkron: Retry manual
-    GagalIsolir --> MenungguSinkron: Retry manual
-    GagalIsolir --> MenungguSinkron: Syarat isolir gugur
+    Putus --> MenungguRouter: Syarat nyala terpenuhi
+    Sebagian --> MenungguRouter: Ulang manual
+    GagalPutus --> MenungguRouter: Ulang manual
+    GagalPutus --> MenungguRouter: Syarat putus gugur
 
-    MenungguSinkron --> Aktif: Semua router sukses membuka
-    MenungguSinkron --> GagalReaktivasi: Semua router gagal membuka
-    GagalReaktivasi --> MenungguSinkron: Retry manual
+    MenungguRouter --> Nyala: Semua router sukses menyalakan
+    MenungguRouter --> GagalNyala: Semua router gagal menyalakan
+    GagalNyala --> MenungguRouter: Ulang manual
 ```
 
 ## Data
@@ -196,21 +172,18 @@ Tambahan pada `pelanggan`:
 
 | Field | Tipe | Keterangan |
 |---|---|---|
-| `batas_tunggakan` | integer atau null | `null`, `1`, atau `2`. Default `2`. Hanya untuk siklus `tetap`. |
-| `siklus_tagihan` | string | `tetap` atau `prepaid_30hari`. Default `tetap`. |
-| `isolir_enabled` | boolean | Default true. Hanya menahan scheduler sementara, tanpa mengubah batas. |
-| `status_isolir` | string | `aktif`, `menunggu_sinkron`, `diisolir`, `sebagian`, `gagal_isolir`, `gagal_reaktivasi` |
-| `sumber_isolir` | string atau null | `scheduler` atau `manual`. Null bila tidak terisolir. |
-| `masa_aktif_hingga` | date atau null | Dipakai `prepaid_30hari` |
-| `isolir_mulai_evaluasi` | date atau null | Scheduler mengabaikan pelanggan sebelum tanggal ini |
-| `bypass_until` | date atau null | Termasuk tanggal ini, scheduler tidak mengisolir |
-| `bypass_approved_by` | bigint atau null | User Admin Global yang menyetujui |
-| `bypass_note` | text atau null | Alasan bypass |
-| `next_isolir_at` | date atau null | Proyeksi untuk layar admin, bukan pemicu job |
-| `hari_isolir` | integer | Tanggal tetap, 1 sampai 31. Tidak berubah karena toleransi atau tanggal bayar. |
-| `isolir_sementara` | date atau null | Sekali jalan. Scheduler tidak mengisolir sebelum tanggal ini. |
-| `diskon_selama_isolir` | boolean | Default false. Hanya dipakai siklus `tetap`. |
+| `batas_tunggakan` | integer atau null | `null`, `1`, atau `2`. Default `2`. Hanya untuk `tanggal_tetap`. |
+| `siklus_tagihan` | string | `tanggal_tetap` atau `prabayar`. Default `tanggal_tetap`. |
+| `status_isolir` | string | `nyala`, `menunggu_router`, `putus`, `sebagian`, `gagal_putus`, `gagal_nyala` |
+| `sumber_putus` | string atau null | `scheduler` atau `manual`. Null bila layanan nyala. |
+| `hari_isolir` | integer | Tanggal tetap, 1 sampai 31. |
+| `isolir_berikutnya` | date atau null | Satu-satunya tanggal yang dibaca scheduler. |
+| `isolir_ditunda_hingga` | date atau null | Sebelum tanggal ini scheduler tidak memutus. Pada tanggal ini job 00:05 boleh memutus. |
+| `alasan_penundaan` | string atau null | `toleransi` atau `bypass`. |
+| `penundaan_catatan` | text atau null | Keterangan toleransi atau bypass. |
+| `penundaan_disetujui_oleh` | bigint atau null | Wajib bila alasan `bypass`. |
+| `isolir_mulai_evaluasi` | date atau null | Scheduler mengabaikan pelanggan sebelum tanggal ini. |
 
-`log_isolir` satu baris per percobaan per Mikrotik: mode saat itu, jumlah tunggakan, salinan masa aktif, `status_api` (`pending`, `sukses`, `gagal`), dan `retry_count`.
+`log_isolir` satu baris per percobaan per Mikrotik: siklus saat itu, jumlah tunggakan, salinan `isolir_berikutnya`, IP yang ditulis, `status_api` (`pending`, `sukses`, `gagal`), dan `retry_count`.
 
-`bypass_requests`: pelanggan, pengaju, `bypass_until`, keterangan, status `menunggu` / `disetujui` / `ditolak`, pemroses, waktu proses, dan alasan tolak.
+Permintaan bypass menyimpan pelanggan, pengaju, tanggal yang diminta, keterangan, status `menunggu` / `disetujui` / `ditolak`, pemroses, dan alasan tolak. Tanggal yang disetujui disalin ke `isolir_ditunda_hingga`.

@@ -67,10 +67,10 @@ flowchart TD
 | **Kredensial Superadmin Router (Role-Based Security)** | **User & Password Superadmin (Master):**<br>Kredensial login tingkat tinggi ke web GUI modem pelanggan (misal: `admin / telecomadmin` atau custom ISP).<br>• 🔒 **Teknisi DILARANG Mengakses:** Kolom disembunyikan/diberi tanda sensor hitam dari layar akun Teknisi demi keamanan (mencegah bocornya password master ISP).<br>• 🟢 **NOC / Super Admin DAPAT Mengakses:** Dibuka penuh untuk tim NOC saat remote konfigurasi. |
 | **Akses Teknisi Saat Perbaikan & Tombol WA** | **Kemudahan Teknisi di Lapangan:**<br>Saat menerima tiket servis/perbaikan, teknisi dapat langsung membuka tab data teknis (melihat SSID, password WiFi, merk alat, tanggal pasang, dan mengunduh file backup config).<br>• **Tombol `[📲 Hubungi Pelanggan via WA]`:** Satu sentuhan di HP teknisi langsung membuka chat WhatsApp ke pelanggan bersangkutan untuk konfirmasi janji temu atau laporan kedatangan. |
 | **Alur Request Penggantian SSID & Password WiFi** | **Prosedur Terverifikasi Anti-Salah Setting:**<br>1. **Pengajuan:** Admin Wilayah atau Teknisi di lapangan membuka form *Request Ubah WiFi* $\rightarrow$ input SSID Baru & Password Baru $\rightarrow$ status `menunggu_verifikasi_noc`.<br>2. **Validasi & Eksekusi NOC:** NOC memvalidasi permintaan, lalu mengeksekusi via API TR-069 GenieACS (atau konfigurasi manual).<br>3. **Pembaruan Otomatis:** Begitu NOC menekan **`[Verifikasi & Simpan]`**, data SSID & password baru otomatis tersimpan permanen di database pelanggan dan dicatat dalam riwayat perubahan. |
-| **Status Cuti / Suspend Sementara (*Seasonal Freeze*)** | Selama `cuti_mulai` sampai `cuti_selesai` (kedua tanggal termasuk), scheduler tidak menerbitkan tagihan langganan bulan penuh dan tidak mengevaluasi isolir. Tidak ada biaya sewa port. Tagihan periode yang sedang berjalan dipotong prorata, dan hari aktif kembali ditagih prorata tersendiri. Lihat bagian pemecahan tagihan saat cuti. |
+| **Status Cuti** | Selama `cuti_mulai` sampai `cuti_selesai`, hari itu bukan hari layanan. Scheduler tidak memutus. Tidak ada biaya sewa port. Lihat bagian tagihan hari layanan. |
 | **Paket Layanan** | Harga paket adalah integer rupiah yang sudah termasuk PPN. Itu nominal yang ditagih, dipotong dompet, dan dicetak. Tidak ada perhitungan PPN kedua di kasir. |
 | **Mikrotik (Many-to-Many)** | Terhubung ke 1 atau banyak Mikrotik via tabel pivot `pelanggan_mikrotik` (IP statis per link) |
-| **Isolir** | Pelanggan baru: `isolir_enabled = true`, `batas_tunggakan = 2`, `siklus_tagihan = tetap`. Batas `1` memutus pada satu tagihan lewat jatuh tempo. Batas kosong tidak pernah diisolir scheduler. Siklus `prepaid_30hari` memindahkan tanggal isolir dari tanggal bayar, kecuali pembayaran dilakukan selama `isolir_sementara`. Centang `diskon_selama_isolir` hanya pada siklus `tetap`. Rincian ada di `docs/logika-isolir.md`. |
+| **Isolir** | Pelanggan baru: `batas_tunggakan = 2`, `siklus_tagihan = tanggal_tetap`. Batas `1` memutus pada satu tagihan lewat jatuh tempo. Batas kosong tidak pernah diputus scheduler. Siklus `prabayar` mengisi `isolir_berikutnya` dari tanggal bayar ditambah 30 hari, kecuali pembayaran terjadi selama penundaan toleransi. Rincian ada di `docs/logika-isolir.md`. |
 | **Jatuh Tempo & Prorata** | Jatuh tempo default tanggal 11 pukul 00:00 Asia/Jakarta. Prorata pasang baru, potongan cuti, dan aktif kembali memakai rumus yang sama: `harga_paket x hari_layanan / jumlah_hari_periode`, dibulatkan ke rupiah terdekat (0,5 ke atas). Hari pertama layanan pada potongan itu dihitung. `jumlah_hari_periode` adalah jumlah hari kalender bulan tagihan. |
 
 ---
@@ -83,7 +83,7 @@ flowchart TD
 | **Urutan Form Proporsional** | **Bagian 1: Identitas Utama**<br>1. Nama Lengkap `[WAJIB]`<br>2. Nomor HP / WhatsApp `[WAJIB]`<br><br>**Bagian 2: Lokasi & Alamat**<br>3. Alamat Detail (Jalan / RT / RW / Patokan Rumah) `[WAJIB]`<br>4. Kecamatan `[OPSIONAL]` (Dropdown)<br>5. Desa / Kelurahan `[OPSIONAL]` (Dropdown cascading)<br>6. Dusun / Dukuh `[OPSIONAL]` (Dropdown cascading)<br>7. Titik Koordinat GPS `[OPSIONAL]` (Tombol deteksi GPS ponsel)<br><br>**Bagian 3: Layanan & Finansial**<br>8. Paket yang Dipilih `[OPSIONAL]` (Dropdown paket)<br>9. Biaya Pemasangan / Instalasi `[OPSIONAL]` (Nominal Rp)<br><br>**Bagian 4: Lampiran Dokumen & Fisik**<br>10. Foto KTP / Identitas `[OPSIONAL]` (Upload/Kamera)<br>11. Foto Lokasi Rumah / Depan `[OPSIONAL]` (Upload/Kamera) |
 | **Kunci Reseller Otomatis** | Jika diinput oleh Reseller, sistem otomatis mengunci `reseller_id` ke akun mitra tersebut. |
 | **Status Awal** | Masuk ke antrean verifikasi: `menunggu_verifikasi_pusat`. |
-| **Verifikasi Admin Global** | **Admin Global memvalidasi kelayakan dan menetapkan aspek teknis:**<br>1. Alokasi Mikrotik (atau multi-Mikrotik)<br>2. Alokasi IP statis pelanggan<br>3. Verifikasi paket resmi, `batas_tunggakan` (default `2`), dan `siklus_tagihan` (default `tetap`)<br>4. Verifikasi biaya pasang baru.<br>Persetujuan ditolak bila paket masih kosong. |
+| **Verifikasi Admin Global** | **Admin Global memvalidasi kelayakan dan menetapkan aspek teknis:**<br>1. Alokasi Mikrotik (atau multi-Mikrotik)<br>2. Alokasi IP statis pelanggan<br>3. Verifikasi paket resmi, `batas_tunggakan` (default `2`), dan `siklus_tagihan` (default `tanggal_tetap`)<br>4. Verifikasi biaya pasang baru.<br>Persetujuan ditolak bila paket masih kosong. |
 | **Otomatisasi Pasca Approval** | Begitu disetujui Admin Global:<br>1. Status menjadi `siap_pasang`. Isolir otomatis belum berjalan karena `tanggal_instalasi` masih kosong.<br>2. Nomor pelanggan unik terbit.<br>3. Akun portal pelanggan terbit.<br>4. Satu invoice perdana terbit, dengan baris prorata langganan dan, bila ada, baris biaya pasang. Biaya pasang tidak dihitung sebagai tunggakan isolir.<br>5. Email sambutan terkirim. WhatsApp hanya lewat tombol `wa.me` yang diklik staf. |
 | **Berita Acara Digital & Tanda Tangan HP (*Digital Handover*)** | **Validasi Resmi Penyerahan Perangkat Pasca Pasang Baru:**<br>Saat instalasi selesai di rumah warga, teknisi membuka form Berita Acara di HP:<br>1. **Scan / Pilih SN Modem:** Teknisi memilih Serial Number modem dari stok tasnya.<br>2. **Tanda Tangan Digital Pelanggan:** Pelanggan menandatangani berita acara langsung di layar sentuh HP teknisi (*Digital Signature Pad*).<br>3. **Klausul Pinjam Pakai Milik ISP:** Dokumen memuat klausul hukum resmi bahwa modem/ONT berstatus **Pinjam Pakai Milik ISP** (bukan hak milik pelanggan).<br>4. **PDF berita acara:** Sistem menerbitkan PDF bernomor unik. Staf menekan tombol `wa.me` bila pelanggan minta tautannya. PDF menyimpan hash dokumen, nama penanda tangan, waktu, dan IP perangkat. Tanda tangan di layar adalah bukti serah terima operasional, bukan pengganti akta. |
 
@@ -102,7 +102,7 @@ flowchart TD
 | **IP Jalur Cadangan (WireGuard)** | Cukup ketik IP tunnel WireGuard yang sudah aktif di OS (contoh: `10.200.0.2`). |
 | **Mekanisme Smart Failover** | **1. Coba Jalur Utama:** Aplikasi menembak API port 8728 ke IP Jalur Utama.<br>**2. Otomatis Pindah ke IP Cadangan:** Jika IP utama timeout (3 detik), aplikasi otomatis menembak API port 8728 ke IP Cadangan.<br>**3. Retry 10x:** Jika kedua IP gagal dihubungi, barulah masuk antrean retry 10x tiap 5 menit + kirim alert. |
 | **Native Watchdog Alert (Anti-Zabbix Down)** | **Jika Kabel Fisik Putus, WireGuard Hidup, & Zabbix Sedang Error/Mati:**<br>Billing memiliki watchdog internal independen (`RouterOsFailoverService`):<br>1. **Deteksi Mandiri:** Billing mendeteksi `ip_primary` timeout (3 detik) namun `ip_secondary` (WireGuard) sukses tersambung.<br>2. **Validasi Port Fisik via WireGuard:** Melalui tunnel WireGuard, billing langsung menembak API Mikrotik: `/interface ethernet print where name="sfp1"` $\rightarrow$ membaca bahwa port fisik memang `running=no` (validasi kabel putus).<br>3. **Alert darurat:** Tanpa menunggu Zabbix, billing mengirim Telegram ke NOC: "[FAILOVER AKTIF] Kabel fisik putus, router beralih ke jalur cadangan." WhatsApp tidak dipakai untuk alert otomatis.<br>4. **Auto-Generate Tiket Internal:** Billing otomatis menerbitkan tiket investigasi lapangan ke tim teknisi.<br>5. **Status Visual:** Node di dashboard/peta berubah menjadi 🟡 **Kuning (Failover Aktif)** dan jalur kabel fisik menjadi 🔴 **Merah**. |
-| **Nama Address-List Isolir** | Nama list isolir di mikrotik tersebut (contoh: `isolir`). |
+| **Nama Address-List Isolir** | Nama daftar yang sudah dipakai firewall Mikrotik, contoh `isolir`. Billing menyimpan nama itu dan tidak membuat aturan firewall. |
 | **Monitoring Dashboard NOC** | Status indikator real-time per titik router (Hijau = IP Utama UP, Kuning = Failover ke IP Cadangan, Merah = Kedua IP Unreachable). |
 | **Test Koneksi Dual-Path** | Tombol uji ping & API socket untuk kedua IP secara mandiri. |
 | **SFP Optical Monitor & Kontrol Laser OTDR (NOC Only)** | **Menu Khusus Maintenance Jaringan:**<br>1. **Monitor Sinyal (DDM via SNMP Wajib):** Membaca RX Power, TX Power, suhu, voltase, dan bias current port SFP/SFP+ secara standar dan super cepat via **SNMP (MikroTik Enterprise MIB OID `mtxrOptical` / UDP port 161)**.<br>2. **Remote Disable / Enable SFP (Pengukuran OTDR via RouterOS API):** NOC dapat mematikan laser port SFP tertentu (**Disable SFP**) dari web billing saat teknisi hendak menembakkan laser alat OTDR untuk mencari titik putus kabel. **Penting:** Mencegah sensor optik alat OTDR yang mahal terbakar/rusak akibat laser aktif dari router.<br>3. **Proteksi & Konfirmasi Modal:** Dilengkapi modal konfirmasi peringatan sebelum disable, banner status kuning *"SFP sedang dimatikan untuk OTDR"*, tombol **`[🟢 Aktifkan SFP Kembali]`**, dan catatan jejak audit forensik. |
@@ -124,93 +124,40 @@ flowchart TD
 | **Mekanisme Parsial** | `nominal`, `terbayar`, dan `sisa` disimpan sebagai integer rupiah dan diubah dalam satu transaksi. |
 | **Status Tunggakan** | Tagihan langganan berstatus `belum_bayar`, `sebagian`, atau `menunggu_verifikasi` masing-masing dihitung satu tunggakan sampai lunas. Potongan sebelum cuti dan prorata aktif kembali adalah dua tagihan terpisah, keduanya masuk daftar tunggakan selama belum lunas. |
 
-#### Pemecahan tagihan saat cuti
+#### Tagihan hanya untuk hari layanan
 
-Tanggal `cuti_mulai` sampai `cuti_selesai` tidak ditagih. Layanan sebelum cuti dan layanan setelah aktif kembali menjadi tagihan langganan yang terpisah. Keduanya tetap tampil di daftar tunggakan selama belum lunas. Tagihan bulan lain yang sudah terbit tidak diubah.
+Hari layanan adalah hari yang bukan cuti dan bukan hari `status_isolir = putus`. Hari putus mulai dihitung sebagai bukan layanan, karena layanan diputus pukul 00:05. Hari layanan dinyalakan kembali dihitung. Hari `sebagian` tetap ditagih.
 
-Saat suspend disimpan:
+Tagihan langganan yang sudah terbit dipotong ke hari layanan yang tersisa. Nomor tagihan tidak berubah. Nominal dihitung ulang dengan rumus prorata. Audit menyimpan nominal lama dan nominal baru. Bila tidak ada hari layanan tersisa, tagihan menjadi `batal` dan tidak dihitung tunggakan. Uang yang sudah masuk di atas nominal baru kembali ke dompet.
 
-- Tagihan langganan yang rentangnya memuat `cuti_mulai` dipotong. `layanan_selesai` menjadi sehari sebelum `cuti_mulai`. Nomor tagihan tidak berubah. Nominal dihitung ulang dengan rumus prorata. Audit menyimpan nominal lama dan nominal baru.
-- Jika tidak ada hari layanan tersisa, tagihan itu menjadi `batal` dan tidak dihitung tunggakan. Uang yang sudah masuk di atas nominal baru kembali ke dompet pelanggan lewat mutasi.
-- Jika `terbayar` lebih kecil dari nominal baru, status tetap `belum_bayar` atau `sebagian`. `sisa` dihitung ulang.
+Bila pelanggan kembali di tengah bulan, sistem menerbitkan tagihan baru untuk hari layanan sejak tanggal itu sampai akhir bulan. Tanggal 1 yang penuh layanan memakai harga penuh. Bulan tanpa hari layanan tidak diterbitkan dan tidak punya kuitansi. Tidak adanya tagihan tidak dihitung lunas, dan pelanggan yang `putus` tetap `putus`.
 
-Saat aktif kembali, tanggal aktivasi adalah sehari setelah `cuti_selesai`:
+Cuti tidak menggeser `isolir_berikutnya`. Selama cuti scheduler tidak memutus. Setelah cuti berakhir, `hitung_isolir_berikutnya` dipakai lagi.
 
-- Jika tanggal itu jatuh pada tanggal 1, scheduler menerbitkan tagihan bulan penuh seperti biasa.
-- Jika tanggal itu jatuh di tengah bulan, sistem menerbitkan tagihan langganan baru untuk tanggal aktivasi sampai hari terakhir bulan itu. Hari aktivasi dihitung, sama seperti hari pasang pelanggan baru.
-- Jika tanggal jatuh tempo bulan itu sudah lewat, jatuh tempo tagihan prorata ini adalah tanggal aktivasi. Tagihan langsung masuk tunggakan sampai dibayar.
-- Bulan berikutnya kembali harga penuh, selama pelanggan tidak cuti lagi.
-
-`masa_aktif_hingga` tidak digeser oleh cuti. Mode `prepaid_30hari` tetap membaca tanggal itu setelah cuti berakhir.
-
-Contoh, harga paket Rp150.000. September belum bayar. November memiliki 30 hari.
+Contoh, harga paket Rp150.000. September belum bayar. November 30 hari. Cuti 10-22 November, kembali 23 November.
 
 ```
-September, layanan 1-30:     Rp150.000  belum bayar
-1 November terbit penuh:     Rp150.000  belum bayar
-Jumlah tunggakan saat itu:   2 tagihan
-
-Cuti 10-22 November
-Tagihan November dipotong ke layanan 1-9:
-  150.000 x 9 / 30 = 45.000
-Nomor tagihan November tidak berubah
-
-Aktif kembali 23 November
-Tagihan baru, layanan 23-30:
-  150.000 x 8 / 30 = 40.000
-Jatuh tempo tagihan ini 23 November
-
-Tunggakan yang tercatat bila belum dibayar:
-  September 1-30     Rp150.000
-  November 1-9       Rp45.000
-  November 23-30     Rp40.000
+September 1-30                 Rp150.000
+November dipotong ke 1-9       Rp45.000
+23-30 November, tagihan baru   Rp40.000
 ```
 
-Selama cuti, isolir tidak dievaluasi walaupun jumlah tunggakan sudah mencapai batas. Setelah 23 November, evaluasi jalan lagi. Tiga tagihan langganan yang belum lunas melewati `batas_tunggakan` 2, jadi scheduler mengisolir pada job berikutnya.
+Tiga tagihan itu masih tunggakan bila belum dibayar, sehingga batas 2 terlewati pada job berikutnya.
 
-#### Bulan penuh tanpa layanan
-
-Scheduler tanggal 1 tidak menerbitkan tagihan langganan bila pelanggan pada pukul 00:05 Asia/Jakarta berstatus `diisolir` dan bulan itu belum punya hari layanan. Hari layanan adalah hari yang bukan cuti dan bukan hari `diisolir`. Tidak ada tagihan berarti tidak ada lembar tagihan dan tidak ada kuitansi untuk bulan itu. Jangan membuat tagihan nol hanya agar bisa dicetak.
-
-Tidak adanya tagihan tidak dihitung lunas. Pelanggan yang sedang `diisolir` tetap `diisolir`.
-
-Bila pelanggan bayar dan layanan dinyalakan kembali di tengah bulan yang belum punya tagihan, sistem menerbitkan satu tagihan prorata dari tanggal aktivasi sampai hari terakhir bulan itu. Hari aktivasi dihitung, sama seperti pasang baru. Bulan berikutnya kembali harga penuh. Tanggal jatuh tempo pelanggan tidak pindah ke tanggal bayar. Bila tanggal jatuh tempo bulan aktivasi sudah lewat, jatuh tempo tagihan prorata itu adalah tanggal aktivasi. Tunggakan bulan sebelumnya tetap invoice tersendiri sampai dibayar.
-
-Contoh, isolir sejak 10 November, belum bayar sepanjang Desember, bayar dan aktif kembali 8 Januari. Harga Rp150.000. Januari 31 hari.
+Contoh lain: putus sejak 10 November, Desember tanpa hari layanan, kembali 8 Januari. Januari 31 hari.
 
 ```
-November tetap punya tagihan, karena 1-9 November masih layanan
-Desember tidak terbit, karena sebulan penuh diisolir
-Tidak ada kuitansi Desember
-
-8 Januari aktivasi
-Tagihan baru, layanan 8-31 Januari
+November 1-9 tetap ditagih
+Desember tidak terbit dan tidak ada kuitansi
+8-31 Januari = 24 hari
 150.000 x 24 / 31 = Rp116.129
-Jatuh tempo tagihan ini 11 Januari, karena tanggal 11 belum lewat
 ```
 
 #### Simulasi biaya aktivasi dan tunggakan
 
-Di halaman pelanggan, Admin Global dan Admin Wilayah punya tombol **Simulasi biaya aktivasi + tunggakan**. Tombol ini hanya menghitung. Tidak membuat tagihan, tidak mencatat pembayaran, tidak mengubah isolir, dan tidak mencetak kuitansi.
+Di halaman pelanggan, Admin Global dan Admin Wilayah punya tombol **Simulasi biaya aktivasi + tunggakan**. Tombol ini memanggil `hitung_isolir_berikutnya` dan tidak menulis apa pun.
 
-Admin mengisi tanggal aktivasi. Kosong berarti hari ini di Asia/Jakarta. Hasilnya menampilkan:
-
-- Setiap tagihan langganan yang masih punya `sisa` dan statusnya bukan `batal`: nomor, rentang layanan, dan sisa.
-- Bulan di antara layanan terakhir dan tanggal aktivasi yang tidak diterbitkan: ditulis tidak ditagih, bukan tagihan nol.
-- Biaya aktivasi yang belum terbit. Tanggal 1 memakai harga penuh. Tanggal lain memakai prorata dari tanggal aktivasi sampai akhir bulan.
-- Biaya pasang hanya bila pelanggan belum terpasang dan biaya itu sudah diisi. Biaya pasang tetap tidak dihitung sebagai tunggakan isolir.
-- Bila siklus `tetap` dan `diskon_selama_isolir` menyala, baris diskon untuk hari `diisolir` pada tagihan yang masih terbuka. Hari aktivasi tidak didiskon.
-- Jumlah yang harus dibayar = sisa tunggakan + biaya aktivasi + biaya pasang - diskon.
-- Jumlah tagihan langganan yang belum lunas bila aktivasi dilakukan, plus tanggal isolir berikutnya. Pada siklus `tetap` tanggal jatuh tempo tidak pindah. Pada `prepaid_30hari` tanggal itu adalah tanggal aktivasi ditambah 30 hari hanya sebagai pratinjau, belum disimpan.
-
-Contoh pratinjau untuk pelanggan yang diisolir sejak 10 November dan akan diaktifkan 8 Januari, harga Rp150.000:
-
-```
-November, sisa tagihan tersimpan     mengikuti invoice November
-Desember                             tidak ditagih
-8-31 Januari                         Rp116.129
-Jumlah                               sisa November + Rp116.129
-```
+Admin mengisi tanggal aktivasi. Kosong berarti hari ini di Asia/Jakarta. Hasilnya menampilkan sisa tagihan yang masih terbuka, bulan yang tidak ditagih, prorata aktivasi, biaya pasang bila pelanggan belum terpasang, jumlah yang harus dibayar, jumlah tunggakan setelah aktivasi, dan `isolir_berikutnya`. Pada `tanggal_tetap`, `hari_isolir` tidak pindah. Pada `prabayar`, pratinjau menambah 30 hari dari tanggal aktivasi bila tidak ada penundaan toleransi. Angka itu belum disimpan.
 
 Menyimpan tagihan dan pembayaran tetap lewat aksi bayar atau aktivasi yang terpisah.
 
@@ -222,11 +169,11 @@ Menyimpan tagihan dan pembayaran tetap lewat aksi bayar atau aktivasi yang terpi
 
 | Metode | Alur Verifikasi | Eksekusi Buka Isolir |
 |---|---|---|
-| **Cash (Kolektor)** | Langsung tercatat atas nama kolektor. Titik GPS disimpan sebagai catatan lokasi, bukan sebagai satu-satunya pengendali. Setiap simpan memakai `idempotency_key` supaya klik ganda tidak membuat dua pembayaran. | Isolir scheduler dibuka hanya bila syarat mode gugur. Isolir manual tidak terbuka karena pembayaran. |
-| **Transfer Manual (Pelanggan)** | Pelanggan mengunggah bukti. Status tagihan menjadi `menunggu_verifikasi` dan tetap dihitung tunggakan. | Setelah Admin Global atau Admin Wilayah menyetujui dan syarat mode gugur. |
-| **Transfer Manual (Admin)** | Admin Global atau Admin Wilayah mengunggah bukti. Tagihan langsung `lunas`. | Syarat mode dievaluasi ulang. Isolir manual tidak ikut terbuka. |
-| **Transfer Manual (Kolektor)** | Mengikuti level wewenang kolektor. Bukti wajib. | Sama dengan level kolektor, dan tetap menunggu syarat mode. |
-| **Payment Gateway (API)** | Adapter disiapkan untuk gateway yang dipilih nanti. Callback kedua dengan `gateway_transaction_id` yang sama tidak membuat pembayaran baru. | Setelah lunas dan syarat mode gugur. |
+| **Cash (Kolektor)** | Langsung tercatat atas nama kolektor. Titik GPS disimpan sebagai catatan lokasi, bukan sebagai satu-satunya pengendali. Setiap simpan memakai `idempotency_key` supaya klik ganda tidak membuat dua pembayaran. | Isolir scheduler dibuka hanya bila syarat putus tidak terpenuhi. Isolir manual tidak terbuka karena pembayaran. |
+| **Transfer Manual (Pelanggan)** | Pelanggan mengunggah bukti. Status tagihan menjadi `menunggu_verifikasi` dan tetap dihitung tunggakan. | Setelah Admin Global atau Admin Wilayah menyetujui dan syarat putus tidak terpenuhi. |
+| **Transfer Manual (Admin)** | Admin Global atau Admin Wilayah mengunggah bukti. Tagihan langsung `lunas`. | Syarat putus dihitung ulang. Putus manual tidak ikut terbuka. |
+| **Transfer Manual (Kolektor)** | Mengikuti level wewenang kolektor. Bukti wajib. | Sama dengan level kolektor, dan tetap menunggu syarat putus. |
+| **Payment Gateway (API)** | Adapter disiapkan untuk gateway yang dipilih nanti. Callback kedua dengan `gateway_transaction_id` yang sama tidak membuat pembayaran baru. | Setelah lunas dan syarat putus tidak terpenuhi. |
 
 ---
 
@@ -242,15 +189,15 @@ Setiap kolektor memiliki konfigurasi penugasan dan wewenang transaksi tersendiri
 #### Level Wewenang Input Pembayaran (Custom per Kolektor)
 1. **Level 1 (Cash Only):** Hanya bisa menerima & input pembayaran uang tunai.
 2. **Level 2 (Cash + Transfer Verifikasi Admin):** Bisa input pembayaran transfer + wajib upload bukti, namun status tagihan menjadi `menunggu_verifikasi` admin. Isolir belum terbuka sampai admin menyetujui.
-3. **Level 3 (Cash + Transfer Auto-Approve):** Kolektor terpercaya dapat mencatat transfer beserta bukti tanpa antrean verifikasi. Isolir terbuka hanya bila syarat mode gugur. Isolir manual tidak terbuka. Pengaju tidak menyetujui bypass-nya sendiri.
+3. **Level 3 (Cash + Transfer Auto-Approve):** Kolektor terpercaya dapat mencatat transfer beserta bukti tanpa antrean verifikasi. Isolir terbuka hanya bila syarat putus tidak terpenuhi. Isolir manual tidak terbuka. Pengaju tidak menyetujui bypass-nya sendiri.
 
 ---
 
 ### 7. 🚫 Isolir via Address-List (Multi-Mikrotik)
 
 > [!IMPORTANT]
-> - `isolir_enabled` default-nya true dan hanya menahan scheduler. Reaktivasi tidak membaca flag ini.
-> - Jika pelanggan terhubung ke lebih dari satu Mikrotik, perintah jalan ke semua router. Status pelanggan menjadi `diisolir` atau `aktif` hanya setelah semua router sukses.
+> - `batas_tunggakan` kosong membuat scheduler tidak memutus. Putus manual tetap bisa dilakukan.
+> - Jika pelanggan terhubung ke lebih dari satu Mikrotik, perintah jalan ke semua router. Status pelanggan menjadi `putus` atau `nyala` hanya setelah semua router sukses.
 > - IP selalu diambil dari `pelanggan_mikrotik.ip_address`. Tidak ada cabang IP sesi PPPoE atau Hotspot.
 
 #### Flow Isolir — Multi-Mikrotik Paralel
@@ -286,12 +233,12 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A["Syarat mode sudah tidak menuntut isolir\natau reaktivasi manual disetujui"]
+    A["Syarat putus sudah tidak terpenuhi\natau nyala manual disetujui"]
     C["Ambil semua Mikrotik\npelanggan ini"]
     D["Dispatch parallel jobs\nper Mikrotik"]
     E1["Hapus IP dari\naddress-list MK-A"]
     E2["Hapus IP dari\naddress-list MK-B"]
-    LOG["Aktif hanya bila\nsemua router sukses"]
+    LOG["Nyala hanya bila\nsemua router sukses"]
 
     A --> C --> D
     D --> E1 & E2 --> LOG
@@ -301,10 +248,10 @@ flowchart TD
 
 | Komponen | Keterangan |
 |---|---|
-| **Flag per pelanggan** | `isolir_enabled` default true. Hanya menahan isolir otomatis. |
-| **Isolir manual** | Menulis `sumber_isolir = manual`. Pembayaran tidak membuka isolir ini. |
+| **Batas per pelanggan** | `batas_tunggakan` default 2. Kosong berarti scheduler tidak memutus. |
+| **Putus manual** | Menulis `sumber_putus = manual`. Pembayaran tidak menyalakan layanan ini. |
 | **Isolir otomatis** | Job 00:05 Asia/Jakarta menurut `docs/logika-isolir.md`, setelah pelanggan terpasang. |
-| **Reaktivasi otomatis** | Saat syarat mode gugur, termasuk bila `isolir_enabled` sudah false. |
+| **Nyala otomatis** | Saat syarat putus tidak terpenuhi dan `isolir_berikutnya` sudah dihitung ulang. |
 | **Reaktivasi manual** | Admin Global, dengan keterangan. Bypass sementara butuh persetujuan Admin Global yang bukan pengaju. |
 | **Log isolir** | Satu baris per Mikrotik: waktu, IP, status API, pemicu. |
 
@@ -395,7 +342,7 @@ flowchart TD
 | Lihat tagihan & riwayat bayar | **Awal** | Daftar tagihan per bulan, status lunas/belum/sebagian |
 | Upload Bukti Transfer | **Awal** | Pelanggan upload bukti transfer untuk diverifikasi admin |
 | Manajemen Dompet & Poin | **Awal** | Cek saldo dompet, request top-up, cek saldo poin, request konversi poin |
-| Lihat status akun | **Awal** | Aktif / Diisolir / Nonaktif |
+| Lihat status akun | **Awal** | Nyala / Putus / Nonaktif |
 | Lihat paket berlangganan | **Awal** | Nama paket, kecepatan |
 | Ganti password portal | **Awal** | — |
 | **Integrasi ACS (TR-069)** | *Future* | Monitor jumlah user aktif, ganti password WiFi |
@@ -975,7 +922,7 @@ flowchart LR
 | **Manual Maintenance Mode (Super Admin)** | **Tombol Saklar Pemeliharaan Sistem:** Super Admin dapat mengaktifkan / menonaktifkan *Maintenance Mode* langsung dari dashboard web (tanpa perlu login SSH terminal):<br>• **Pesan Kustom:** Admin dapat mengetik pesan pengumuman (contoh: *"Sedang ada pemeliharaan server database hingga pukul 02:00 WIB. Layanan internet pelanggan tetap aktif normal"*).<br>• **Akses Khusus (Bypass):** Super Admin tetap bisa mengakses seluruh menu dashboard selama mode pemeliharaan aktif.<br>• **Tampilan Pengguna:** Kolektor dan Pelanggan yang membuka web/portal akan melihat halaman status pemeliharaan resmi yang elegan dan informatif. |
 | **Paket Layanan** | CRUD paket langganan (nama, harga nominal Rp, kecepatan upload/download). |
 | **Siklus & Tanggal Tagihan** | Hari generate invoice bulanan otomatis & tanggal jatuh tempo default (tanggal 11 pukul 00:00). |
-| **Toleransi Isolir Global** | Pengaturan default pelanggan baru: `batas_tunggakan = 2` dan `siklus_tagihan = tetap`. |
+| **Toleransi Isolir Global** | Pengaturan default pelanggan baru: `batas_tunggakan = 2` dan `siklus_tagihan = tanggal_tetap`. |
 | **Template Cetak Kuitansi** | Pemilihan model kuitansi default (Thermal Bluetooth 58mm/80mm) dan teks kop/footer. |
 | **Integrasi notifikasi** | SMTP email dan token bot Telegram. Tidak ada API key gateway WhatsApp untuk pesan otomatis ke pelanggan. |
 | **Integrasi & Kredensial Server ACS (GenieACS)** | Form input URL NBI (`http://ip:7557`), username/password atau API Key token, timeout socket (default 3 detik), dan tombol **`[🔌 Uji Koneksi API ACS]`**. Menyimpan riwayat status health check live. |
@@ -1083,19 +1030,16 @@ erDiagram
         bigint saldo_dompet
         int saldo_poin
         bool auto_pay_enabled
-        bool isolir_enabled
         int batas_tunggakan
         string siklus_tagihan
         string status_isolir
-        string sumber_isolir
-        date masa_aktif_hingga
+        string sumber_putus
+        date isolir_berikutnya
         date isolir_mulai_evaluasi
-        date bypass_until
-        bigint bypass_approved_by
-        date next_isolir_at
+        date isolir_ditunda_hingga
+        string alasan_penundaan
+        bigint penundaan_disetujui_oleh
         int hari_isolir
-        date isolir_sementara
-        bool diskon_selama_isolir
         string acs_device_id
         decimal latitude
         decimal longitude
@@ -1299,7 +1243,7 @@ erDiagram
         int pelanggan_id
         int mikrotik_id
         string aksi
-        string ip_diisolir
+        string ip_putus
         datetime waktu
         string trigger_by
         string status
