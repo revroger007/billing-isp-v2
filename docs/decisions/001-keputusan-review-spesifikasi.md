@@ -28,7 +28,9 @@ Versi 0.3 cara kerja dan versi 1.2 logika isolir memakai tiga default isolir, sa
 - Komentar address-list isolir adalah nomor pelanggan lalu nama. Nomor pelanggan tidak dipotong. Nama yang tidak muat dipotong pada batas 128 karakter.
 - Seribu isolir pada hari yang sama tidak membuka seribu koneksi. Satu Mikrotik satu sesi API, 50 entri, jeda 1 detik. Nyala layanan dari pembayaran didahulukan.
 - Perintah yang gagal karena Mikrotik mati dicoba 10 kali, jeda 5 menit. Setelah batas itu, satu percobaan ulang dijalankan 5 menit setelah router terpantau nyala, hanya untuk baris yang gagal.
+- Menyalakan layanan membatalkan baris putus yang belum dijalankan. `hari_isolir` yang melewati akhir bulan menjadi hari terakhir bulan itu. Entri address-list tidak punya timeout.
+- `status_layanan` memakai `tidak_serempak` untuk router yang tidak selesai bersama. `sebagian` tetap status pembayaran.
 
 ## Konsekuensi
 
-`docs/cara-kerja.md` dan `docs/logika-isolir.md` versi 2.3 mengikuti keputusan ini. Perubahan berikutnya dicatat sebagai keputusan baru, bukan dengan menghidupkan kalimat lama.
+`docs/cara-kerja.md` dan `docs/logika-isolir.md` versi 2.6 mengikuti keputusan ini. Perubahan berikutnya dicatat sebagai keputusan baru, bukan dengan menghidupkan kalimat lama.

@@ -115,7 +115,7 @@ flowchart TD
 | Fitur | Keterangan |
 |---|---|
 | **Format No. Tagihan** | `INV-YYYY-MM-XXXX` (contoh: `INV-2026-11-0001`). Nomor diambil dari sequence per periode di dalam transaksi database. Nomor yang sudah terbit tidak dipakai ulang, termasuk tagihan yang dibatalkan. |
-| **Generate Otomatis & Manual** | 1. **Otomatis bulanan:** satu tagihan `langganan` untuk satu rentang layanan. Unique `(pelanggan_id, tipe_invoice, layanan_mulai)` menolak rentang yang sama terbit dua kali. Satu bulan kalender boleh punya dua tagihan langganan bila cuti memotong bulan itu.<br>2. **Invoice manual:** biaya di luar langganan (penggantian router, denda) menjadi tagihan `manual` dan tidak dihitung `batas_tunggakan`.<br>3. Tagihan punya baris. `nominal` adalah jumlah baris. `sisa` selalu `nominal - terbayar`, dijaga constraint. |
+| **Generate Otomatis & Manual** | 1. **Otomatis bulanan:** satu tagihan `langganan` untuk satu rentang layanan. Unique `(pelanggan_id, tipe_tagihan, layanan_mulai)` menolak rentang yang sama terbit dua kali. Satu bulan kalender boleh punya dua tagihan langganan bila cuti memotong bulan itu.<br>2. **Invoice manual:** biaya di luar langganan (penggantian router, denda) menjadi tagihan `manual` dan tidak dihitung `batas_tunggakan`.<br>3. Tagihan punya baris. `nominal` adalah jumlah baris. `sisa` selalu `nominal - terbayar`, dijaga constraint. |
 | **Link Invoice Publik** | Token acak 128 bit, unik, dan dapat diputar bila bocor. Contoh bentuk: `https://billing.isp.com/inv/` diikuti 32 karakter hex. Halaman tanpa login hanya menampilkan nomor tagihan, nama depan, nominal, status, dan jatuh tempo. |
 | **Aksi "Kirim Invoice" (Direct WA)** | Di halaman admin, terdapat tombol **[📲 Kirim Invoice]**: Saat diklik, browser **langsung membuka aplikasi WhatsApp** (atau WhatsApp Web) ke nomor HP pelanggan dengan pesan siap kirim yang sudah terisi otomatis (nama, rincian tagihan, batas bayar, dan link invoice publik). |
 | **Riwayat Lengkap di Portal** | Seluruh riwayat tagihan masa lalu (lunas, belum bayar, cicilan) tersusun rapi di **Portal Pelanggan** setelah pelanggan melakukan login. |
@@ -126,7 +126,7 @@ flowchart TD
 
 #### Tagihan hanya untuk hari layanan
 
-Hari layanan adalah hari yang bukan cuti dan bukan hari `status_isolir = putus`. Hari putus mulai dihitung sebagai bukan layanan, karena layanan diputus pukul 00:05. Hari layanan dinyalakan kembali dihitung. Hari `sebagian` tetap ditagih.
+Hari layanan adalah hari yang bukan cuti dan bukan hari `status_layanan = putus`. Hari putus mulai dihitung sebagai bukan layanan, karena layanan diputus pukul 00:05. Hari layanan dinyalakan kembali dihitung. Hari `tidak_serempak` tetap ditagih.
 
 Tagihan langganan yang sudah terbit dipotong ke hari layanan yang tersisa. Nomor tagihan tidak berubah. Nominal dihitung ulang dengan rumus prorata. Audit menyimpan nominal lama dan nominal baru. Bila tidak ada hari layanan tersisa, tagihan menjadi `batal` dan tidak dihitung tunggakan. Uang yang sudah masuk di atas nominal baru kembali ke dompet.
 
@@ -1032,7 +1032,7 @@ erDiagram
         bool auto_pay_enabled
         int batas_tunggakan
         string siklus_tagihan
-        string status_isolir
+        string status_layanan
         string sumber_putus
         date isolir_berikutnya
         date isolir_mulai_evaluasi
@@ -1164,7 +1164,7 @@ erDiagram
         int port_api
         string username_api
         string password_api
-        string address_list_name
+        string nama_daftar
         string snmp_community
         int snmp_port
         string status_koneksi
@@ -1182,7 +1182,7 @@ erDiagram
         int pelanggan_id
         string no_tagihan
         string public_token
-        string tipe_invoice
+        string tipe_tagihan
         string periode
         bigint nominal
         bigint terbayar
@@ -1238,7 +1238,7 @@ erDiagram
         int admin_id
     }
 
-    LOG_ISOLIR {
+    LOG_PERINTAH_ROUTER {
         int id
         int pelanggan_id
         int mikrotik_id
@@ -1419,8 +1419,8 @@ erDiagram
     TAGIHAN ||--o{ TRANSAKSI_PEMBAYARAN : "memiliki riwayat bayar"
     TRANSAKSI_PEMBAYARAN }o--o| KOLEKTOR : "diterima oleh"
     KOLEKTOR ||--o{ SETORAN : "menyetor"
-    PELANGGAN ||--o{ LOG_ISOLIR : "tercatat"
-    MIKROTIK ||--o{ LOG_ISOLIR : "dicatat dari"
+    PELANGGAN ||--o{ LOG_PERINTAH_ROUTER : "tercatat"
+    MIKROTIK ||--o{ LOG_PERINTAH_ROUTER : "dicatat dari"
     PERANGKAT_INVENTARIS }o--o| USERS : "dibawa oleh"
     PERANGKAT_INVENTARIS }o--o| PELANGGAN : "terpasang di"
     PELANGGAN ||--o{ BERITA_ACARA_INSTALASI : "memiliki dokumen"

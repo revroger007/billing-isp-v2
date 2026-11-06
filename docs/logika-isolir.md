@@ -1,6 +1,6 @@
 # Spesifikasi Logika Isolir
 
-> Versi: 2.5 | Tanggal: 6 November 2026
+> Versi: 2.6 | Tanggal: 6 November 2026
 > Sistem: pra-bayar
 > Mekanisme: IP statis dimasukkan ke address-list Mikrotik. Semua pelanggan memakai IP statis. Kolom `tipe_koneksi` hanya catatan teknis dan tidak mengubah cara isolir.
 
@@ -19,7 +19,7 @@ Pelanggan baru: `batas_tunggakan = 2`, `siklus_tagihan = tanggal_tetap`.
 
 `batas_tunggakan = null` tampil di layar sebagai Tidak pernah. Isolir manual tetap menunggu nyala manual.
 
-Scheduler hanya memutus bila tanggal hari ini di Asia/Jakarta sudah mencapai `isolir_berikutnya` dan syarat siklus terpenuhi. `hari_isolir` adalah angka 1 sampai 31 yang dipakai untuk menghitung tanggal itu. `isolir_berikutnya` adalah satu-satunya tanggal yang dibaca scheduler.
+Scheduler hanya memutus bila tanggal hari ini di Asia/Jakarta sudah mencapai `isolir_berikutnya` dan syarat siklus terpenuhi. `hari_isolir` adalah angka 1 sampai 31 yang dipakai untuk menghitung tanggal itu. Bila bulan tujuan lebih pendek, dipakai hari terakhir bulan itu. `isolir_berikutnya` adalah satu-satunya tanggal putus yang dibaca scheduler.
 
 Scheduler melewati pelanggan bila salah satu ini berlaku:
 
@@ -36,11 +36,11 @@ Job harian berjalan pukul 00:05 Asia/Jakarta. Tanggal yang dibandingkan adalah t
 
 `hitung_isolir_berikutnya` hanya menghitung tanggal dan jumlah tunggakan. Pembayaran, cuti, toleransi, bypass, dan tombol simulasi memanggil fungsi ini. Fungsi ini tidak menghubungi Mikrotik.
 
-`putuskan_layanan` dan `nyalakan_layanan` adalah satu-satunya fungsi yang menulis address-list. Keduanya mencatat hasil per router. Status pelanggan menjadi `putus` atau `nyala` hanya setelah semua router yang dituju sukses.
+`putuskan_layanan` dan `nyalakan_layanan` adalah satu-satunya fungsi yang menulis address-list. Keduanya mencatat hasil per router. Status pelanggan menjadi `putus` atau `nyala` hanya setelah semua router yang dituju sukses. `nyalakan_layanan` membatalkan baris putus yang belum dijalankan untuk pelanggan dan router yang sama, supaya antrean lama tidak memutus lagi setelah pelanggan bayar.
 
 ## Status yang dihitung tunggakan
 
-Hanya tagihan `tipe_invoice = langganan` yang tanggal jatuh temponya sudah sampai. Biaya pasang, denda, dan invoice manual tidak dihitung dan tidak memperpanjang siklus `prabayar`. Bulan yang tidak diterbitkan tidak dihitung lunas dan tidak menyalakan layanan.
+Hanya tagihan `tipe_tagihan = langganan` yang tanggal jatuh temponya sudah sampai. Biaya pasang, denda, dan invoice manual tidak dihitung dan tidak memperpanjang siklus `prabayar`. Bulan yang tidak diterbitkan tidak dihitung lunas dan tidak menyalakan layanan.
 
 Satu tagihan dihitung tunggakan bila statusnya `belum_bayar`, `sebagian`, atau `menunggu_verifikasi`. Status `sebagian` tetap satu tunggakan sampai `sisa = 0`. Unggah bukti tidak menyalakan layanan.
 
@@ -60,7 +60,7 @@ Jika batas_tunggakan berisi 1 atau 2 dan hari ini >= isolir_berikutnya:
 
 Tagihan lama ikut dihitung. Satu tagihan September yang lewat jatuh tempo memutus pelanggan dengan batas 1, walaupun tagihan bulan ini sudah lunas. Pada batas 2, membayar satu dari dua tagihan sudah cukup untuk menyalakan layanan. `hari_isolir` tidak bergeser.
 
-Tombol simulasi hanya pratinjau. Simulasi tidak mengubah `status_isolir` dan tidak menyimpan `isolir_berikutnya`.
+Tombol simulasi hanya pratinjau. Simulasi tidak mengubah `status_layanan` dan tidak menyimpan `isolir_berikutnya`.
 
 ## Siklus prabayar
 
@@ -101,7 +101,7 @@ Pembayaran selama penundaan beralasan `toleransi` tidak memakai rumus 30 hari. `
 
 ## Banyak Mikrotik
 
-Setiap router pelanggan punya satu baris log. IP selalu diambil dari `pelanggan_mikrotik.ip_address`. Perintah ke router idempotent. Nama address-list, misalnya `isolir`, harus sudah dipakai oleh aturan firewall di Mikrotik. Billing menyimpan nama daftar itu dan tidak membuat aturan firewall.
+Setiap router pelanggan punya satu baris log. IP selalu diambil dari `pelanggan_mikrotik.ip_address`. Perintah ke router idempotent. Nama address-list, misalnya `isolir`, harus sudah dipakai oleh aturan firewall di Mikrotik. Billing menyimpan nama itu di `nama_daftar` dan tidak membuat aturan firewall. Entri ditulis tanpa timeout. Hanya billing yang menghapusnya.
 
 ## Antrian perintah
 
@@ -111,7 +111,7 @@ Setiap Mikrotik punya satu pekerja. Pekerja router yang berbeda boleh berjalan b
 
 Pekerja mengambil 50 baris, membuka satu sesi ke IP utama, dan bila sesi itu gagal memakai IP cadangan untuk seluruh 50 baris itu. Entri ditulis di sesi yang sama. Entri yang sudah ada dihitung sukses. Sesi ditutup, lalu jeda 1 detik, lalu 50 baris berikutnya. Baris yang gagal kembali ke antrian dengan jeda 5 menit, paling banyak 10 percobaan termasuk percobaan pertama, tanpa mengulang baris yang sudah sukses.
 
-Setelah 10 percobaan habis, baris itu berstatus gagal dan tidak dicoba lagi oleh jeda 5 menit. Status pelanggan menjadi `gagal_putus`, `gagal_nyala`, atau `sebagian`. Bila kemudian IP utama atau cadangan router itu terpantau menjawab, sistem menjadwalkan satu percobaan ulang otomatis 5 menit setelah pantauan nyala. Percobaan ini di luar hitungan 10. Hanya baris gagal pada router itu yang dijalankan. Bila percobaan ini gagal, percobaan otomatis berikutnya menunggu router terpantau mati lalu nyala lagi. Satu router hanya boleh punya satu jadwal ulang ini. Router yang flapping tidak menambah jadwal baru sebelum jadwal yang ada dijalankan.
+Setelah 10 percobaan habis, baris itu berstatus gagal dan tidak dicoba lagi oleh jeda 5 menit. Status pelanggan menjadi `gagal_putus`, `gagal_nyala`, atau `tidak_serempak`. Bila kemudian IP utama atau cadangan router itu terpantau menjawab, sistem menjadwalkan satu percobaan ulang otomatis 5 menit setelah pantauan nyala. Percobaan ini di luar hitungan 10. Hanya baris gagal pada router itu yang dijalankan. Bila percobaan ini gagal, percobaan otomatis berikutnya menunggu router terpantau mati lalu nyala lagi. Satu router hanya boleh punya satu jadwal ulang ini. Router yang flapping tidak menambah jadwal baru sebelum jadwal yang ada dijalankan.
 
 Perintah menyalakan layanan dari pembayaran atau admin berprioritas di atas putus massal. Prioritas dicek di antara dua batch, sehingga pembayaran tidak menunggu 1000 pelanggan selesai. Pembayaran hanya menunggu batch 50 yang sedang berjalan.
 
@@ -119,18 +119,18 @@ Perintah menyalakan layanan dari pembayaran atau admin berprioritas di atas putu
 
 Komentar setiap entri address-list berbentuk `no_pelanggan` diikuti satu spasi dan nama pelanggan, contoh `CUST-00123 Budi Santoso`. Nomor pelanggan selalu utuh karena itu kunci audit. Nama memakai data terkini. Baris baru dan tanda kutip diganti spasi. Panjang komentar paling banyak 128 karakter. Bila tidak muat, hanya nama yang dipotong. Nomor telepon, alamat, dan NIK tidak ditulis. Bila nama berubah, entri yang sudah ada diperbarui komentarnya, bukan ditambah baru. Bila IP berubah, entri IP lama dihapus dan entri IP baru memakai komentar yang sama.
 
-`status_isolir` pelanggan diturunkan dari log router yang dituju:
+`status_layanan` pelanggan diturunkan dari log router yang dituju:
 
-| Kondisi log | `status_isolir` |
+| Kondisi log | `status_layanan` |
 |---|---|
 | Masih ada router yang dicoba ulang | `menunggu_router` |
 | Semua router sukses menambah IP | `putus` |
 | Semua router sukses menghapus IP | `nyala` |
-| Sebagian router sukses dan percobaan habis | `sebagian` |
+| Sebagian router sukses dan percobaan habis | `tidak_serempak` |
 | Semua router gagal saat memutus dan percobaan habis | `gagal_putus` |
 | Semua router gagal saat menyalakan dan percobaan habis | `gagal_nyala` |
 
-Pelanggan tidak ditandai `putus` atau `nyala` sebelum semua router yang dituju sukses. Hari `sebagian` bukan hari putus, sehingga tidak mengurangi tagihan. Sepuluh percobaan berkala hanya untuk router yang gagal. Router yang sudah sukses tidak diubah lagi. Percobaan setelah Mikrotik nyala kembali mengikuti bagian antrian perintah.
+Pelanggan tidak ditandai `putus` atau `nyala` sebelum semua router yang dituju sukses. Hari `tidak_serempak` bukan hari putus, sehingga tidak mengurangi tagihan. Sepuluh percobaan berkala hanya untuk router yang gagal. Router yang sudah sukses tidak diubah lagi. Percobaan setelah Mikrotik nyala kembali mengikuti bagian antrian perintah.
 
 ## Penundaan isolir
 
@@ -146,7 +146,7 @@ Contoh: isolir terakhir 5 November, toleransi 5 hari. `isolir_ditunda_hingga` me
 
 Bila pelanggan membayar 1 bulan pada atau sebelum tanggal itu, penundaan dihapus. `isolir_berikutnya` menjadi tanggal `hari_isolir` yang pertama sesudah tanggal bayar. Pembayaran 10 November dengan `hari_isolir` 5 menghasilkan 5 Desember, bukan 10 Desember dan bukan 10 November ditambah 30 hari. Dua bulan memajukan dua tanggal `hari_isolir`. Pembayaran pada tanggal 5 sendiri memajukan ke tanggal 5 bulan berikutnya. Aturan ini berlaku untuk semua batas dan kedua siklus. Sisa tagihan yang belum tertutup tetap tersimpan. Sesudah `isolir_berikutnya`, batas dan siklus berjalan seperti biasa.
 
-Bypass diajukan Admin Wilayah dan disetujui Admin Global. Pengaju tidak boleh menyetujui permintaannya sendiri. Bila disetujui, `isolir_ditunda_hingga` diisi tanggal yang diminta dan `alasan_penundaan = bypass`, lalu `nyalakan_layanan` dipanggil bila pelanggan sedang putus. Bila API gagal, permintaan tetap `disetujui` dan `status_isolir` menjadi `menunggu_router` atau `gagal_nyala`. Layar tidak boleh mengaku layanan sudah nyala sebelum semua router sukses.
+Bypass diajukan Admin Wilayah dan disetujui Admin Global. Pengaju tidak boleh menyetujui permintaannya sendiri. Bila disetujui, `isolir_ditunda_hingga` diisi tanggal yang diminta dan `alasan_penundaan = bypass`, lalu `nyalakan_layanan` dipanggil bila pelanggan sedang putus. Bila API gagal, permintaan tetap `disetujui` dan `status_layanan` menjadi `menunggu_router` atau `gagal_nyala`. Layar tidak boleh mengaku layanan sudah nyala sebelum semua router sukses.
 
 ## Isolir manual
 
@@ -168,12 +168,12 @@ stateDiagram-v2
 
     Nyala --> MenungguRouter: Syarat putus terpenuhi
     MenungguRouter --> Putus: Semua router sukses
-    MenungguRouter --> Sebagian: Percobaan habis, hasil router campuran
+    MenungguRouter --> TidakSerempak: Percobaan habis, hasil router campuran
     MenungguRouter --> GagalPutus: Semua router gagal memutus
     MenungguRouter --> Nyala: Syarat putus gugur sebelum router selesai
 
     Putus --> MenungguRouter: Syarat nyala terpenuhi
-    Sebagian --> MenungguRouter: Ulang manual
+    TidakSerempak --> MenungguRouter: Ulang manual
     GagalPutus --> MenungguRouter: Ulang manual
     GagalPutus --> MenungguRouter: Syarat putus gugur
 
@@ -190,9 +190,9 @@ Tambahan pada `pelanggan`:
 |---|---|---|
 | `batas_tunggakan` | integer atau null | `null`, `1`, atau `2`. Default `2`. Hanya untuk `tanggal_tetap`. |
 | `siklus_tagihan` | string | `tanggal_tetap` atau `prabayar`. Default `tanggal_tetap`. |
-| `status_isolir` | string | `nyala`, `menunggu_router`, `putus`, `sebagian`, `gagal_putus`, `gagal_nyala` |
+| `status_layanan` | string | `nyala`, `menunggu_router`, `putus`, `tidak_serempak`, `gagal_putus`, `gagal_nyala` |
 | `sumber_putus` | string atau null | `scheduler` atau `manual`. Null bila layanan nyala. |
-| `hari_isolir` | integer | Tanggal tetap, 1 sampai 31. |
+| `hari_isolir` | integer | Tanggal tetap, 1 sampai 31. Bulan yang lebih pendek memakai hari terakhir. |
 | `isolir_berikutnya` | date atau null | Satu-satunya tanggal yang dibaca scheduler. |
 | `isolir_ditunda_hingga` | date atau null | Sebelum tanggal ini scheduler tidak memutus. Pada tanggal ini job 00:05 boleh memutus. |
 | `alasan_penundaan` | string atau null | `toleransi` atau `bypass`. |
@@ -200,6 +200,6 @@ Tambahan pada `pelanggan`:
 | `penundaan_disetujui_oleh` | bigint atau null | Wajib bila alasan `bypass`. |
 | `isolir_mulai_evaluasi` | date atau null | Scheduler mengabaikan pelanggan sebelum tanggal ini. |
 
-`log_isolir` satu baris per percobaan per Mikrotik: siklus saat itu, jumlah tunggakan, salinan `isolir_berikutnya`, IP yang ditulis, `status_api` (`pending`, `sukses`, `gagal`), dan `retry_count`.
+`log_perintah_router` satu baris per percobaan per Mikrotik: siklus saat itu, jumlah tunggakan, salinan `isolir_berikutnya`, IP yang ditulis, `status_api` (`pending`, `sukses`, `gagal`), dan `jumlah_percobaan`.
 
 Permintaan bypass menyimpan pelanggan, pengaju, tanggal yang diminta, keterangan, status `menunggu` / `disetujui` / `ditolak`, pemroses, dan alasan tolak. Tanggal yang disetujui disalin ke `isolir_ditunda_hingga`.

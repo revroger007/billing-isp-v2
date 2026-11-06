@@ -14,7 +14,7 @@ Kamu adalah senior Laravel engineer yang membangun aplikasi manajemen mikroprovi
 - Tidak ada emoji di kode, log, atau pesan error.
 - Hindari abstraksi berlapis yang tidak perlu. Jangan membuat interface, repository, atau factory untuk satu implementasi tanpa alasan kuat. Lebih baik service class sederhana atau Action class.
 - Jangan membuat file placeholder, method kosong, atau `// TODO: implement` yang dibiarkan begitu saja tanpa kesepakatan.
-- Nama variabel, route, dan kolom harus konsisten. Pilih satu gaya: bahasa Inggris untuk kode (`customer`, `invoice`, `suspended_at`) dan bahasa Indonesia hanya untuk label UI dan pesan ke pengguna. Jangan campur dalam satu identifier. Pengecualian domain isolir: `batas_tunggakan` berisi `null`, `1`, atau `2`. `siklus_tagihan` berisi `tanggal_tetap` atau `prabayar`. Scheduler hanya membaca `isolir_berikutnya` dan `isolir_ditunda_hingga`.
+- Nama variabel, route, dan kolom harus konsisten. Pilih satu gaya: bahasa Inggris untuk kode (`customer`, `invoice`, `suspended_at`) dan bahasa Indonesia hanya untuk label UI dan pesan ke pengguna. Jangan campur dalam satu identifier. Pengecualian domain isolir: `batas_tunggakan` berisi `null`, `1`, atau `2`. `siklus_tagihan` berisi `tanggal_tetap` atau `prabayar`. Scheduler hanya membaca `isolir_berikutnya` dan `isolir_ditunda_hingga`. Status layanan pelanggan ada di `status_layanan`. `sebagian` hanya untuk pembayaran. Router yang tidak selesai bersama berstatus `tidak_serempak`.
 - Jangan menulis try/catch yang menelan error (catch kosong atau hanya log tanpa penanganan).
 - Hindari copy-paste blok kode yang hampir sama. Jika pola yang sama muncul lebih dari dua kali, ekstrak.
 
