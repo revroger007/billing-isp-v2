@@ -168,6 +168,27 @@ Tunggakan yang tercatat bila belum dibayar:
 
 Selama cuti, isolir tidak dievaluasi walaupun jumlah tunggakan sudah 2. Setelah 23 November, evaluasi jalan lagi. Tiga tagihan langganan yang belum lunas membuat mode `dua_tunggakan` mengisolir pada job berikutnya.
 
+#### Bulan penuh tanpa layanan
+
+Scheduler tanggal 1 tidak menerbitkan tagihan langganan bila pelanggan pada pukul 00:05 Asia/Jakarta berstatus `diisolir` dan bulan itu belum punya hari layanan. Hari layanan adalah hari yang bukan cuti dan bukan hari `diisolir`. Tidak ada tagihan berarti tidak ada lembar tagihan dan tidak ada kuitansi untuk bulan itu. Jangan membuat tagihan nol hanya agar bisa dicetak.
+
+Tidak adanya tagihan tidak dihitung lunas. Pelanggan yang sedang `diisolir` tetap `diisolir`.
+
+Bila pelanggan bayar dan layanan dinyalakan kembali di tengah bulan yang belum punya tagihan, sistem menerbitkan satu tagihan prorata dari tanggal aktivasi sampai hari terakhir bulan itu. Hari aktivasi dihitung, sama seperti pasang baru. Bulan berikutnya kembali harga penuh. Tanggal jatuh tempo pelanggan tidak pindah ke tanggal bayar. Bila tanggal jatuh tempo bulan aktivasi sudah lewat, jatuh tempo tagihan prorata itu adalah tanggal aktivasi. Tunggakan bulan sebelumnya tetap invoice tersendiri sampai dibayar.
+
+Contoh, isolir sejak 10 November, belum bayar sepanjang Desember, bayar dan aktif kembali 8 Januari. Harga Rp150.000. Januari 31 hari.
+
+```
+November tetap punya tagihan, karena 1-9 November masih layanan
+Desember tidak terbit, karena sebulan penuh diisolir
+Tidak ada kuitansi Desember
+
+8 Januari aktivasi
+Tagihan baru, layanan 8-31 Januari
+150.000 x 24 / 31 = Rp116.129
+Jatuh tempo tagihan ini 11 Januari, karena tanggal 11 belum lewat
+```
+
 ---
 
 ### 5. 💳 Manajemen Pembayaran & Gateway Abstraction
@@ -379,7 +400,7 @@ Sistem dirancang fleksibel dan hemat kertas sesuai kebutuhan lapangan kolektor:
 | Fitur | Keterangan |
 |---|---|
 | **Cetak Tagihan (Belum Bayar)** | Admin dan Kolektor **dapat mencetak lembar tagihan fisik meskipun belum dibayar**. Berguna untuk dititipkan ke rumah pelanggan/instansi sebagai surat pemberitahuan tagihan jatuh tempo. |
-| **Cetak Kuitansi Bersifat Opsional** | Tidak ada auto-print paksa. Setelah transaksi pembayaran berhasil diinput, sistem menyediakan opsi: <br>• **[🖨️ Cetak Kuitansi]** (jika pelanggan meminta struk fisik)<br>• **[✅ Selesai Tanpa Cetak]** (hemat kertas thermal jika pelanggan tidak butuh kuitansi). |
+| **Cetak Kuitansi Bersifat Opsional** | Tidak ada auto-print paksa. Setelah transaksi pembayaran berhasil diinput, sistem menyediakan opsi cetak atau selesai tanpa cetak. Kuitansi hanya memuat tagihan yang dibayar. Bulan yang tidak punya tagihan, misalnya bulan penuh terisolir, tidak tercetak. |
 | **Default Tipe Printer** | Android dapat mencetak ESC/POS 58mm atau 80mm lewat intent saat halaman pembayaran terbuka. iOS mengunduh PDF. Browser tidak memegang koneksi Bluetooth di latar belakang. |
 | **Editor Template Cetak** | Admin dapat mengatur: Logo ISP (monochrome), Header (Nama ISP, Alamat, No Telp CS), Body detail, dan Catatan Footer (pesan jatuh tempo, doa/terima kasih). |
 | **Multi-Model Layout** | Tersedia beberapa pilihan model struk yang dapat dipilih saat mencetak: <br>1. **Model Tagihan / Invoice Belum Lunas (Thermal 58mm):** Format surat tagihan mini untuk diserahkan saat nagih.<br>2. **Model Kuitansi Lunas Ringkas (Thermal 58mm):** Hemat kertas, khusus bukti bayar cepat.<br>3. **Model Kuitansi Rinci (Thermal 80mm):** Menampilkan rincian histori cicilan & sisa tagihan lengkap.<br>4. **Model Dokumen Formal (PDF/A4/Struk Kantor):** Invoice/kuitansi resmi untuk pelanggan korporat/instansi atau kasir kantor. |

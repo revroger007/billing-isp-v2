@@ -1,6 +1,6 @@
 # Spesifikasi Logika Isolir
 
-> Versi: 1.7 | Tanggal: 6 November 2026
+> Versi: 1.8 | Tanggal: 6 November 2026
 > Sistem: pra-bayar
 > Mekanisme: IP statis dimasukkan ke address-list Mikrotik. Semua pelanggan memakai IP statis. Kolom `tipe_koneksi` hanya catatan teknis dan tidak mengubah cara isolir.
 
@@ -44,7 +44,7 @@ Jika tagihan periode berjalan menjadi lunas dan pelanggan sedang terisolir oleh 
      reaktivasi
 ```
 
-Tagihan periode lain tidak memicu `jatuh_tempo`. Pembayaran sebagian tidak membuka isolir.
+Tagihan periode lain tidak memicu `jatuh_tempo`. Pembayaran sebagian tidak membuka isolir. Bulan yang tidak diterbitkan karena pelanggan `diisolir` sepanjang bulan itu tidak dianggap lunas, dan tidak membuka isolir.
 
 Tanggal jatuh tempo tidak bergeser karena pembayaran, reaktivasi, atau diskon. Pelanggan yang jatuh temponya tanggal 10 tetap diisolir pada tanggal 10 bila tagihan periode itu belum lunas. Mode `prepaid_30hari` berbeda: tanggal isolir berikutnya pindah ke tanggal bayar ditambah 30 hari.
 
