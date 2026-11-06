@@ -6,8 +6,8 @@ Versi 0.3 cara kerja dan versi 1.2 logika isolir memakai tiga default isolir, sa
 
 ## Keputusan
 
-- Pelanggan baru: `isolir_enabled = true`, `mode_isolir = dua_tunggakan`. Mode `default` dihapus.
-- Nilai `mode_isolir`: `jatuh_tempo`, `tidak_isolir`, `dua_tunggakan`, `prepaid_30hari`. Kolom `masa_aktif_hingga` tetap.
+- Pelanggan baru: `isolir_enabled = true`, `batas_tunggakan = 2`, `siklus_tagihan = tetap`.
+- Isolir tidak punya empat mode. `batas_tunggakan` berisi `null`, `1`, atau `2`. `siklus_tagihan` berisi `tetap` atau `prepaid_30hari`. Kolom `masa_aktif_hingga` tetap untuk siklus prabayar.
 - `isolir_enabled` hanya menahan scheduler. Reaktivasi tidak membaca flag itu.
 - Isolir otomatis menunggu `tanggal_instalasi`. Biaya pasang adalah baris invoice, bukan tagihan kedua, dan tidak dihitung tunggakan.
 - Tunggakan langganan meliputi `belum_bayar`, `sebagian`, dan `menunggu_verifikasi`.
@@ -20,7 +20,7 @@ Versi 0.3 cara kerja dan versi 1.2 logika isolir memakai tiga default isolir, sa
 - Failover server, replikasi database, dan restore SQL adalah prosedur infrastruktur, bukan modul aplikasi.
 - Impor pelanggan lama memakai `isolir_mulai_evaluasi`. Mutasi uang yang dibatalkan menulis jurnal balik.
 - Cuti tidak menagih tanggal cuti. Tagihan periode berjalan dipotong sampai sehari sebelum `cuti_mulai`. Aktif kembali di tengah bulan membuat tagihan prorata tersendiri sampai akhir bulan, dan tagihan itu masuk tunggakan.
-- Pelanggan `jatuh_tempo` dapat memakai `diskon_selama_isolir`. Diskon mengurangi tagihan atas hari terisolir, dan tanggal jatuh tempo tidak berubah. `prepaid_30hari` tidak memakai pilihan ini.
+- `diskon_selama_isolir` adalah centang pada siklus `tetap`. Diskon mengurangi tagihan atas hari terisolir, dan tanggal jatuh tempo tidak berubah. `prepaid_30hari` tidak memakai pilihan ini. Satu tagihan langganan yang sudah lewat jatuh tempo memutus pelanggan dengan `batas_tunggakan = 1`, termasuk tagihan bulan lain.
 - Bulan tanpa hari layanan tidak punya tagihan dan tidak punya kuitansi. Aktivasi kembali di tengah bulan membuat tagihan prorata sampai akhir bulan. Tidak adanya tagihan tidak membuka isolir.
 - Tombol simulasi admin menjumlahkan sisa tunggakan dan prorata aktivasi tanpa menyimpan apa pun.
 

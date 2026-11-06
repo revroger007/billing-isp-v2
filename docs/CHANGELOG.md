@@ -4,10 +4,9 @@
 
 Spesifikasi diselaraskan dengan review rancangan.
 
-- Isolir default `dua_tunggakan`, flag `isolir_enabled` tidak lagi menahan reaktivasi, dan status banyak router dicatat sampai semua node selesai.
-- Nilai `mode_isolir`: `jatuh_tempo`, `tidak_isolir`, `dua_tunggakan`, dan `prepaid_30hari`. Kolom tanggal `masa_aktif_hingga` tidak berganti nama.
+- Isolir memakai `batas_tunggakan` (`null`, `1`, `2`) dan `siklus_tagihan` (`tetap`, `prepaid_30hari`). Flag `isolir_enabled` tidak menahan reaktivasi.
 - Cuti memotong tagihan bulan berjalan secara prorata sampai sehari sebelum cuti. Aktif kembali di tengah bulan menerbitkan prorata baru sampai akhir bulan. Keduanya tetap invoice tunggakan.
-- Mode `jatuh_tempo` punya pilihan `diskon_selama_isolir`. Tanggal isolir tidak pindah. Mode `prepaid_30hari` tetap memindahkan tanggal isolir dari tanggal bayar.
+- `diskon_selama_isolir` hanya centang pada siklus `tetap`. Tanggal jatuh tempo tidak pindah. `prepaid_30hari` memindahkan isolir berikutnya dari tanggal bayar.
 - Bulan yang terisolir penuh tidak diterbitkan, sehingga tidak ada kuitansi bulan itu. Aktivasi di tengah bulan berikutnya menerbitkan prorata seperti pasang baru.
 - Admin punya tombol simulasi biaya aktivasi dan tunggakan. Hasilnya pratinjau, tidak menulis tagihan atau isolir.
 - Uang, PPN, prorata, baris tagihan, dan jurnal balik dikunci sebagai integer rupiah.
