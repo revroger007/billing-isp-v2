@@ -10,6 +10,7 @@ Spesifikasi diselaraskan dengan review rancangan.
 - Penundaan isolir hanya lewat `isolir_ditunda_hingga`, dengan alasan `toleransi` atau `bypass`. Pembayaran satu bulan saat toleransi mengembalikan jadwal ke `hari_isolir`.
 - Komentar address-list isolir berisi nomor pelanggan dan nama, paling banyak 128 karakter. Nomor pelanggan tidak dipotong.
 - Perintah isolir masuk antrian database. Satu Mikrotik satu koneksi, 50 entri per sesi, jeda 1 detik. Pembayaran mengantri di depan putus massal.
+- Gagal ke Mikrotik dicoba 10 kali dengan jeda 5 menit. Setelah habis, satu percobaan ulang otomatis dijadwalkan 5 menit setelah router terpantau nyala lagi.
 - Bulan yang terisolir penuh tidak diterbitkan, sehingga tidak ada kuitansi bulan itu. Aktivasi di tengah bulan berikutnya menerbitkan prorata seperti pasang baru.
 - Admin punya tombol simulasi biaya aktivasi dan tunggakan. Hasilnya pratinjau, tidak menulis tagihan atau isolir.
 - Uang, PPN, prorata, baris tagihan, dan jurnal balik dikunci sebagai integer rupiah.
