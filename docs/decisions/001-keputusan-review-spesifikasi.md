@@ -26,6 +26,7 @@ Versi 0.3 cara kerja dan versi 1.2 logika isolir memakai tiga default isolir, sa
 - Bulan tanpa hari layanan tidak punya tagihan dan tidak punya kuitansi. Aktivasi kembali di tengah bulan membuat tagihan prorata sampai akhir bulan. Tidak adanya tagihan tidak membuka isolir.
 - Tombol simulasi admin menjumlahkan sisa tunggakan dan prorata aktivasi tanpa menyimpan apa pun.
 - Komentar address-list isolir adalah nomor pelanggan lalu nama. Nomor pelanggan tidak dipotong. Nama yang tidak muat dipotong pada batas 128 karakter.
+- Seribu isolir pada hari yang sama tidak membuka seribu koneksi. Satu Mikrotik satu sesi API, 50 entri, jeda 1 detik. Nyala layanan dari pembayaran didahulukan.
 
 ## Konsekuensi
 

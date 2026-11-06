@@ -197,7 +197,7 @@ Setiap kolektor memiliki konfigurasi penugasan dan wewenang transaksi tersendiri
 
 > [!IMPORTANT]
 > - `batas_tunggakan` kosong membuat scheduler tidak memutus. Putus manual tetap bisa dilakukan.
-> - Jika pelanggan terhubung ke lebih dari satu Mikrotik, perintah jalan ke semua router. Status pelanggan menjadi `putus` atau `nyala` hanya setelah semua router sukses.
+> - Jika pelanggan terhubung ke lebih dari satu Mikrotik, setiap router punya antreannya sendiri. Pada satu router hanya satu koneksi API. Status pelanggan menjadi `putus` atau `nyala` hanya setelah semua router sukses.
 > - IP selalu diambil dari `pelanggan_mikrotik.ip_address`. Tidak ada cabang IP sesi PPPoE atau Hotspot.
 
 #### Flow Isolir — Multi-Mikrotik Paralel
@@ -206,7 +206,7 @@ Setiap kolektor memiliki konfigurasi penugasan dan wewenang transaksi tersendiri
 flowchart TD
     A["Trigger Isolir\n(Scheduler / Admin)"]
     B["Ambil daftar Mikrotik\npelanggan ini"]
-    C["Dispatch parallel jobs\nper Mikrotik"]
+    C["Masuk antrian\nsatu pekerja per Mikrotik"]
 
     subgraph JOB1["Job: MK-A"]
         D1["Koneksi ke MK-A\nutama, lalu cadangan"]
