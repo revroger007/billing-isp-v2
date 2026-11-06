@@ -1238,6 +1238,15 @@ erDiagram
         int admin_id
     }
 
+    RIWAYAT_ISOLIR {
+        bigint id
+        bigint pelanggan_id
+        datetime mulai_putus
+        datetime nyala_kembali
+        string sumber_putus
+        string sumber_nyala
+    }
+
     LOG_API_MIKROTIK {
         int id
         int pelanggan_id
@@ -1419,6 +1428,7 @@ erDiagram
     TAGIHAN ||--o{ TRANSAKSI_PEMBAYARAN : "memiliki riwayat bayar"
     TRANSAKSI_PEMBAYARAN }o--o| KOLEKTOR : "diterima oleh"
     KOLEKTOR ||--o{ SETORAN : "menyetor"
+    PELANGGAN ||--o{ RIWAYAT_ISOLIR : "punya periode putus"
     PELANGGAN ||--o{ LOG_API_MIKROTIK : "tercatat"
     MIKROTIK ||--o{ LOG_API_MIKROTIK : "dicatat dari"
     PERANGKAT_INVENTARIS }o--o| USERS : "dibawa oleh"

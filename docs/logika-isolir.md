@@ -1,6 +1,6 @@
 # Spesifikasi Logika Isolir
 
-> Versi: 2.8 | Tanggal: 6 November 2026
+> Versi: 2.9 | Tanggal: 6 November 2026
 > Sistem: pra-bayar
 > Mekanisme: IP statis dimasukkan ke address-list Mikrotik. Semua pelanggan memakai IP statis. Kolom `tipe_koneksi` hanya catatan teknis dan tidak mengubah cara isolir.
 
@@ -201,5 +201,14 @@ Tambahan pada `pelanggan`:
 | `isolir_mulai_evaluasi` | date atau null | Scheduler mengabaikan pelanggan sebelum tanggal ini. |
 
 `log_api_mikrotik` satu baris per percobaan per Mikrotik: siklus saat itu, jumlah tunggakan, salinan `isolir_berikutnya`, IP yang ditulis, `status_api` (`pending`, `sukses`, `gagal`), dan `jumlah_percobaan`.
+
+`riwayat_isolir` satu baris per periode putus seorang pelanggan, bukan per router dan bukan per percobaan. Baris dibuat saat `status_layanan` menjadi `putus`. `nyala_kembali` tetap kosong sampai semua router berhasil menyala. `tidak_serempak` dan percobaan gagal tidak membuat baris baru. Hanya boleh ada satu baris terbuka, yaitu yang `nyala_kembali`-nya masih kosong. `sumber_putus` berisi `scheduler` atau `manual`. `sumber_nyala` berisi `scheduler`, `pembayaran`, atau `admin`.
+
+Contoh pelanggan A:
+
+```
+mulai_putus 5 November,  nyala_kembali 10 November
+mulai_putus 5 Desember,  nyala_kembali 15 Desember
+```
 
 Permintaan bypass menyimpan pelanggan, pengaju, tanggal yang diminta, keterangan, status `menunggu` / `disetujui` / `ditolak`, pemroses, dan alasan tolak. Tanggal yang disetujui disalin ke `isolir_ditunda_hingga`.

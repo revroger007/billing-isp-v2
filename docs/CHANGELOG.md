@@ -13,6 +13,7 @@ Spesifikasi diselaraskan dengan review rancangan.
 - Gagal ke Mikrotik dicoba 10 kali dengan jeda 5 menit. Setelah habis, satu percobaan ulang otomatis dijadwalkan 5 menit setelah router terpantau nyala lagi.
 - Baris putus yang belum jalan dibatalkan saat layanan dinyalakan. `hari_isolir` pada bulan pendek memakai hari terakhir. Entri address-list tidak memakai timeout.
 - Nama kolom diselaraskan: `status_layanan`, `log_api_mikrotik`, `nama_address_list`, `tipe_tagihan`, `jumlah_percobaan`. Status router yang tidak selesai serempak adalah `tidak_serempak`.
+- `riwayat_isolir` menyimpan satu periode putus sampai nyala per pelanggan. Percobaan API tetap di `log_api_mikrotik`.
 - Bulan yang terisolir penuh tidak diterbitkan, sehingga tidak ada kuitansi bulan itu. Aktivasi di tengah bulan berikutnya menerbitkan prorata seperti pasang baru.
 - Admin punya tombol simulasi biaya aktivasi dan tunggakan. Hasilnya pratinjau, tidak menulis tagihan atau isolir.
 - Uang, PPN, prorata, baris tagihan, dan jurnal balik dikunci sebagai integer rupiah.
