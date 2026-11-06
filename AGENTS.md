@@ -34,6 +34,7 @@ Kamu adalah senior Laravel engineer yang membangun aplikasi manajemen mikroprovi
 
 ## 4. Aturan Domain ISP / RT-RW Net
 - Uang disimpan sebagai integer dalam rupiah (bigInteger), bukan float atau decimal dengan pembulatan implisit. Tidak ada perhitungan uang dengan float.
+- Keputusan produk yang sudah dikunci ada di `docs/decisions/001-keputusan-review-spesifikasi.md` dan `docs/logika-isolir.md`. Jangan menghidupkan aturan lama yang bertentangan dengan dua dokumen itu.
 - Timezone aplikasi: Asia/Jakarta. Semua timestamp disimpan UTC di database.
 - Status pelanggan dimodelkan sebagai state machine yang eksplisit, misalnya: active, overdue, suspended (isolir), terminated. Transisi status hanya boleh lewat satu service, dan setiap transisi tercatat di audit log.
 - Generate tagihan harus idempotent. Menjalankan job dua kali untuk periode yang sama tidak boleh menghasilkan tagihan ganda. Gunakan unique constraint di database, bukan hanya pengecekan di kode.
