@@ -6,7 +6,8 @@ Versi 0.3 cara kerja dan versi 1.2 logika isolir memakai tiga default isolir, sa
 
 ## Keputusan
 
-- Pelanggan baru: `isolir_enabled = true`, `mode_isolir = custom3`. Mode `default` dihapus.
+- Pelanggan baru: `isolir_enabled = true`, `mode_isolir = toleransi_satu`. Mode `default` dihapus.
+- Nilai `mode_isolir` berbahasa Indonesia: `jatuh_tempo`, `tidak_isolir`, `toleransi_satu`, `masa_aktif`.
 - `isolir_enabled` hanya menahan scheduler. Reaktivasi tidak membaca flag itu.
 - Isolir otomatis menunggu `tanggal_instalasi`. Biaya pasang adalah baris invoice, bukan tagihan kedua, dan tidak dihitung tunggakan.
 - Tunggakan langganan meliputi `belum_bayar`, `sebagian`, dan `menunggu_verifikasi`.
