@@ -1,6 +1,6 @@
 # Spesifikasi Logika Isolir
 
-> Versi: 1.4 | Tanggal: 6 November 2026
+> Versi: 1.5 | Tanggal: 6 November 2026
 > Sistem: pra-bayar
 > Mekanisme: IP statis dimasukkan ke address-list Mikrotik. Semua pelanggan memakai IP statis. Kolom `tipe_koneksi` hanya catatan teknis dan tidak mengubah cara isolir.
 
@@ -8,14 +8,14 @@ Aturan di dokumen ini mengalahkan diagram atau kalimat lama yang masih membedaka
 
 ## Mode
 
-Tidak ada mode bernama `default`. Pelanggan baru dibuat dengan `isolir_enabled = true` dan `mode_isolir = toleransi_satu`.
+Tidak ada mode bernama `default`. Pelanggan baru dibuat dengan `isolir_enabled = true` dan `mode_isolir = dua_tunggakan`.
 
 | Mode | Kapan scheduler mengisolir | Kapan layanan dibuka lagi |
 |---|---|---|
 | `jatuh_tempo` | Tanggal hari ini di Asia/Jakarta sudah mencapai jatuh tempo tagihan langganan periode berjalan, dan status tagihan itu `belum_bayar`, `sebagian`, atau `menunggu_verifikasi` | Hanya setelah tagihan periode berjalan itu `lunas` |
 | `tidak_isolir` | Tidak pernah | Isolir manual tetap menunggu reaktivasi manual |
-| `toleransi_satu` | Jumlah tagihan langganan yang belum lunas mencapai 2 atau lebih | Jumlah itu turun di bawah 2 |
-| `masa_aktif` | Tanggal hari ini di Asia/Jakarta sudah mencapai `masa_aktif_hingga` | Pembayaran yang memperpanjang masa aktif, lalu reaktivasi pada saat yang sama |
+| `dua_tunggakan` | Jumlah tagihan langganan yang belum lunas mencapai 2 atau lebih | Jumlah itu turun di bawah 2 |
+| `prepaid_30hari` | Tanggal hari ini di Asia/Jakarta sudah mencapai `masa_aktif_hingga` | Pembayaran yang memperpanjang masa aktif, lalu reaktivasi pada saat yang sama |
 
 `isolir_enabled = false` hanya menghentikan isolir otomatis oleh scheduler. Flag ini tidak memblokir isolir manual dan tidak memblokir reaktivasi. Pelanggan yang diisolir scheduler lalu flag-nya dimatikan dievaluasi pada jalan scheduler berikutnya: jika mode tidak lagi menuntut isolir, layanan dibuka.
 
@@ -30,7 +30,7 @@ Job harian berjalan pukul 00:05 Asia/Jakarta. Tanggal yang dibandingkan adalah t
 
 ## Status yang dihitung tunggakan
 
-Hanya tagihan `tipe_invoice = langganan`. Biaya pasang, denda, dan invoice manual lain tidak menambah hitungan `jatuh_tempo` atau `toleransi_satu` dan tidak memperpanjang `masa_aktif`.
+Hanya tagihan `tipe_invoice = langganan`. Biaya pasang, denda, dan invoice manual lain tidak menambah hitungan `jatuh_tempo` atau `dua_tunggakan` dan tidak memperpanjang `prepaid_30hari`.
 
 Satu tagihan dihitung tunggakan bila statusnya `belum_bayar`, `sebagian`, atau `menunggu_verifikasi`. Status `sebagian` tetap satu tunggakan sampai `sisa = 0`. `menunggu_verifikasi` tetap tunggakan sampai admin menyetujui pembayaran. Unggah bukti tidak membuka isolir.
 
@@ -53,7 +53,7 @@ Contoh, jatuh tempo tanggal 10:
 15 Oktober, Oktober lunas -> reaktivasi
 ```
 
-## toleransi_satu
+## dua_tunggakan
 
 ```
 jumlah = jumlah tagihan langganan yang belum lunas
@@ -66,7 +66,7 @@ Jika jumlah < 2 dan pelanggan terisolir oleh mode ini:
 
 Membayar satu dari dua tagihan sudah cukup untuk membuka isolir. Dua tagihan `sebagian` tetap dihitung dua.
 
-## masa_aktif
+## prepaid_30hari
 
 `masa_aktif_hingga` adalah tanggal kalender terakhir layanan boleh nyala. Perpanjangan selalu `N x 30` hari kalender, bukan tambah satu bulan. Contoh: 31 Januari ditambah 30 hari menjadi 2 Maret. 15 Februari 2026 ditambah 30 hari menjadi 17 Maret 2026.
 
@@ -106,7 +106,7 @@ Jika nominal mencakup dua bulan atau lebih, admin atau kolektor memilih:
 | Cicil tunggakan | 1 | Satu bulan memperpanjang masa aktif. Sisa melunasi tagihan langganan terlama. |
 | Bayar tagihan rutin | jumlah bulan yang dibayar | Setiap bulan memperpanjang masa aktif dan melunasi satu tagihan terlama. |
 
-Tagihan yang tidak tertutup alokasi tetap menunggak. `masa_aktif` tidak mengisolir karena jumlah tunggakan. Saat mode pelanggan nanti diubah ke `toleransi_satu`, tunggakan yang tersisa langsung dipakai.
+Tagihan yang tidak tertutup alokasi tetap menunggak. `prepaid_30hari` tidak mengisolir karena jumlah tunggakan. Saat mode pelanggan nanti diubah ke `dua_tunggakan`, tunggakan yang tersisa langsung dipakai.
 
 ## Banyak Mikrotik
 
@@ -139,8 +139,8 @@ Bypass menyimpan `bypass_until`, `bypass_approved_by`, dan `bypass_note`. Selama
 
 Mode baru berlaku pada penyimpanan. Perubahan menulis audit: mode lama, mode baru, tanggal lama, tanggal baru, dan pelaku.
 
-- Ke `masa_aktif`: admin wajib mengisi `masa_aktif_hingga`. `next_isolir_at` dihitung ulang.
-- Keluar dari `masa_aktif`: `masa_aktif_hingga` dikosongkan. `next_isolir_at` dihitung dari mode baru dan tagihan yang ada.
+- Ke `prepaid_30hari`: admin wajib mengisi `masa_aktif_hingga`. `next_isolir_at` dihitung ulang.
+- Keluar dari `prepaid_30hari`: `masa_aktif_hingga` dikosongkan. `next_isolir_at` dihitung dari mode baru dan tagihan yang ada.
 - Status isolir yang sedang berjalan tidak dihapus diam-diam. Scheduler berikutnya membuka atau mempertahankan isolir sesuai mode baru.
 
 ## State
@@ -171,11 +171,11 @@ Tambahan pada `pelanggan`:
 
 | Field | Tipe | Keterangan |
 |---|---|---|
-| `mode_isolir` | string | `jatuh_tempo`, `tidak_isolir`, `toleransi_satu`, `masa_aktif` |
+| `mode_isolir` | string | `jatuh_tempo`, `tidak_isolir`, `dua_tunggakan`, `prepaid_30hari` |
 | `isolir_enabled` | boolean | Default true. Hanya mengatur scheduler. |
 | `status_isolir` | string | `aktif`, `menunggu_sinkron`, `diisolir`, `sebagian`, `gagal_isolir`, `gagal_reaktivasi` |
 | `sumber_isolir` | string atau null | `scheduler` atau `manual`. Null bila tidak terisolir. |
-| `masa_aktif_hingga` | date atau null | Dipakai `masa_aktif` |
+| `masa_aktif_hingga` | date atau null | Dipakai `prepaid_30hari` |
 | `isolir_mulai_evaluasi` | date atau null | Scheduler mengabaikan pelanggan sebelum tanggal ini |
 | `bypass_until` | date atau null | Termasuk tanggal ini, scheduler tidak mengisolir |
 | `bypass_approved_by` | bigint atau null | User Admin Global yang menyetujui |
