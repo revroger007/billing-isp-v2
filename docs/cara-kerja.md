@@ -1164,7 +1164,7 @@ erDiagram
         int port_api
         string username_api
         string password_api
-        string nama_daftar
+        string nama_address_list
         string snmp_community
         int snmp_port
         string status_koneksi

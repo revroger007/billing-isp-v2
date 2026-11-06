@@ -1,6 +1,6 @@
 # Spesifikasi Logika Isolir
 
-> Versi: 2.7 | Tanggal: 6 November 2026
+> Versi: 2.8 | Tanggal: 6 November 2026
 > Sistem: pra-bayar
 > Mekanisme: IP statis dimasukkan ke address-list Mikrotik. Semua pelanggan memakai IP statis. Kolom `tipe_koneksi` hanya catatan teknis dan tidak mengubah cara isolir.
 
@@ -101,7 +101,7 @@ Pembayaran selama penundaan beralasan `toleransi` tidak memakai rumus 30 hari. `
 
 ## Banyak Mikrotik
 
-Setiap router pelanggan punya satu baris log. IP selalu diambil dari `pelanggan_mikrotik.ip_address`. Perintah ke router idempotent. Nama address-list, misalnya `isolir`, harus sudah dipakai oleh aturan firewall di Mikrotik. Billing menyimpan nama itu di `nama_daftar` dan tidak membuat aturan firewall. Entri ditulis tanpa timeout. Hanya billing yang menghapusnya.
+Setiap router pelanggan punya satu baris log. IP selalu diambil dari `pelanggan_mikrotik.ip_address`. Perintah ke router idempotent. Nama address-list, misalnya `isolir`, harus sudah dipakai oleh aturan firewall di Mikrotik. Billing menyimpan nama itu di `nama_address_list` dan tidak membuat aturan firewall. Entri ditulis tanpa timeout. Hanya billing yang menghapusnya.
 
 ## Antrian perintah
 
