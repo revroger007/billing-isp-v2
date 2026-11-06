@@ -12,7 +12,7 @@ Spesifikasi diselaraskan dengan review rancangan.
 - Perintah isolir masuk antrian database. Satu Mikrotik satu koneksi, 50 entri per sesi, jeda 1 detik. Pembayaran mengantri di depan putus massal.
 - Gagal ke Mikrotik dicoba 10 kali dengan jeda 5 menit. Setelah habis, satu percobaan ulang otomatis dijadwalkan 5 menit setelah router terpantau nyala lagi.
 - Baris putus yang belum jalan dibatalkan saat layanan dinyalakan. `hari_isolir` pada bulan pendek memakai hari terakhir. Entri address-list tidak memakai timeout.
-- Nama kolom diselaraskan: `status_layanan`, `log_perintah_router`, `nama_daftar`, `tipe_tagihan`, `jumlah_percobaan`. Status router yang tidak selesai serempak adalah `tidak_serempak`.
+- Nama kolom diselaraskan: `status_layanan`, `log_api_mikrotik`, `nama_daftar`, `tipe_tagihan`, `jumlah_percobaan`. Status router yang tidak selesai serempak adalah `tidak_serempak`.
 - Bulan yang terisolir penuh tidak diterbitkan, sehingga tidak ada kuitansi bulan itu. Aktivasi di tengah bulan berikutnya menerbitkan prorata seperti pasang baru.
 - Admin punya tombol simulasi biaya aktivasi dan tunggakan. Hasilnya pratinjau, tidak menulis tagihan atau isolir.
 - Uang, PPN, prorata, baris tagihan, dan jurnal balik dikunci sebagai integer rupiah.

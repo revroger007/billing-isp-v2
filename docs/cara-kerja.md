@@ -1238,7 +1238,7 @@ erDiagram
         int admin_id
     }
 
-    LOG_PERINTAH_ROUTER {
+    LOG_API_MIKROTIK {
         int id
         int pelanggan_id
         int mikrotik_id
@@ -1419,8 +1419,8 @@ erDiagram
     TAGIHAN ||--o{ TRANSAKSI_PEMBAYARAN : "memiliki riwayat bayar"
     TRANSAKSI_PEMBAYARAN }o--o| KOLEKTOR : "diterima oleh"
     KOLEKTOR ||--o{ SETORAN : "menyetor"
-    PELANGGAN ||--o{ LOG_PERINTAH_ROUTER : "tercatat"
-    MIKROTIK ||--o{ LOG_PERINTAH_ROUTER : "dicatat dari"
+    PELANGGAN ||--o{ LOG_API_MIKROTIK : "tercatat"
+    MIKROTIK ||--o{ LOG_API_MIKROTIK : "dicatat dari"
     PERANGKAT_INVENTARIS }o--o| USERS : "dibawa oleh"
     PERANGKAT_INVENTARIS }o--o| PELANGGAN : "terpasang di"
     PELANGGAN ||--o{ BERITA_ACARA_INSTALASI : "memiliki dokumen"

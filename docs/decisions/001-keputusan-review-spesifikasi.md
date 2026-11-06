@@ -33,4 +33,4 @@ Versi 0.3 cara kerja dan versi 1.2 logika isolir memakai tiga default isolir, sa
 
 ## Konsekuensi
 
-`docs/cara-kerja.md` dan `docs/logika-isolir.md` versi 2.6 mengikuti keputusan ini. Perubahan berikutnya dicatat sebagai keputusan baru, bukan dengan menghidupkan kalimat lama.
+`docs/cara-kerja.md` dan `docs/logika-isolir.md` versi 2.7 mengikuti keputusan ini. Perubahan berikutnya dicatat sebagai keputusan baru, bukan dengan menghidupkan kalimat lama.
