@@ -1,6 +1,6 @@
 # Spesifikasi Logika Isolir
 
-> Versi: 1.6 | Tanggal: 6 November 2026
+> Versi: 1.7 | Tanggal: 6 November 2026
 > Sistem: pra-bayar
 > Mekanisme: IP statis dimasukkan ke address-list Mikrotik. Semua pelanggan memakai IP statis. Kolom `tipe_koneksi` hanya catatan teknis dan tidak mengubah cara isolir.
 
@@ -46,12 +46,33 @@ Jika tagihan periode berjalan menjadi lunas dan pelanggan sedang terisolir oleh 
 
 Tagihan periode lain tidak memicu `jatuh_tempo`. Pembayaran sebagian tidak membuka isolir.
 
-Contoh, jatuh tempo tanggal 10:
+Tanggal jatuh tempo tidak bergeser karena pembayaran, reaktivasi, atau diskon. Pelanggan yang jatuh temponya tanggal 10 tetap diisolir pada tanggal 10 bila tagihan periode itu belum lunas. Mode `prepaid_30hari` berbeda: tanggal isolir berikutnya pindah ke tanggal bayar ditambah 30 hari.
+
+Pelanggan `jatuh_tempo` punya pilihan `diskon_selama_isolir`. Default-nya mati. Pilihan ini hanya berlaku selama modenya `jatuh_tempo`.
+
+Bila pilihan menyala, hari tanpa layanan karena isolir mengurangi nominal tagihan langganan yang menaungi hari itu. Rumusnya sama dengan prorata: `harga_paket x hari_diskon / jumlah_hari_periode`, dibulatkan ke rupiah terdekat. Hasilnya menjadi satu baris `diskon_isolir` pada tagihan itu. Baris dihitung ulang dari tanggal isolir, bukan ditambah berulang.
+
+Hari yang dihitung diskon:
+
+- tanggal kalender saat `status_isolir = diisolir` sepanjang hari itu
+- tanggal mulai isolir dihitung, karena layanan diputus pukul 00:05
+- tanggal reaktivasi tidak dihitung
+- tanggal yang sudah dikeluarkan dari tagihan karena cuti tidak didiskon lagi
+
+Nominal tagihan tidak turun di bawah nol. Jika `terbayar` menjadi lebih besar dari nominal baru, kelebihannya masuk dompet dan tagihan menjadi `lunas`. Diskon tidak mengubah `jatuh_tempo` dan tidak memindahkan tanggal isolir bulan berikutnya.
+
+Contoh, jatuh tempo tanggal 10, harga Rp150.000, Oktober 31 hari, pilihan diskon menyala:
 
 ```
 10 Oktober, tagihan Oktober belum lunas -> isolir
-15 Oktober, Oktober lunas -> reaktivasi
+15 Oktober, tagihan lunas -> reaktivasi
+Hari diskon = 10, 11, 12, 13, 14 Oktober (5 hari)
+Diskon = 150.000 x 5 / 31 = Rp24.194
+Tagihan Oktober menjadi Rp125.806
+Jatuh tempo November tetap tanggal 10
 ```
+
+Pada `prepaid_30hari`, pembayaran 15 Oktober saat terisolir memindahkan isolir berikutnya ke 14 November. `jatuh_tempo` tidak melakukan pemindahan itu.
 
 ## dua_tunggakan
 
@@ -181,6 +202,7 @@ Tambahan pada `pelanggan`:
 | `bypass_approved_by` | bigint atau null | User Admin Global yang menyetujui |
 | `bypass_note` | text atau null | Alasan bypass |
 | `next_isolir_at` | date atau null | Proyeksi untuk layar admin, bukan pemicu job |
+| `diskon_selama_isolir` | boolean | Default false. Hanya dipakai mode `jatuh_tempo`. |
 
 `log_isolir` satu baris per percobaan per Mikrotik: mode saat itu, jumlah tunggakan, salinan masa aktif, `status_api` (`pending`, `sukses`, `gagal`), dan `retry_count`.
 

@@ -70,7 +70,7 @@ flowchart TD
 | **Status Cuti / Suspend Sementara (*Seasonal Freeze*)** | Selama `cuti_mulai` sampai `cuti_selesai` (kedua tanggal termasuk), scheduler tidak menerbitkan tagihan langganan bulan penuh dan tidak mengevaluasi isolir. Tidak ada biaya sewa port. Tagihan periode yang sedang berjalan dipotong prorata, dan hari aktif kembali ditagih prorata tersendiri. Lihat bagian pemecahan tagihan saat cuti. |
 | **Paket Layanan** | Harga paket adalah integer rupiah yang sudah termasuk PPN. Itu nominal yang ditagih, dipotong dompet, dan dicetak. Tidak ada perhitungan PPN kedua di kasir. |
 | **Mikrotik (Many-to-Many)** | Terhubung ke 1 atau banyak Mikrotik via tabel pivot `pelanggan_mikrotik` (IP statis per link) |
-| **Mode Isolir** | Pelanggan baru: `isolir_enabled = true` dan `mode_isolir = dua_tunggakan` (isolir bila tagihan langganan belum lunas mencapai 2). Opsi lain: `jatuh_tempo`, `tidak_isolir`, `prepaid_30hari`. Tidak ada mode bernama `default`. Rincian ada di `docs/logika-isolir.md`. |
+| **Mode Isolir** | Pelanggan baru: `isolir_enabled = true` dan `mode_isolir = dua_tunggakan` (isolir bila tagihan langganan belum lunas mencapai 2). Opsi lain: `jatuh_tempo`, `tidak_isolir`, `prepaid_30hari`. Pada `jatuh_tempo`, admin dapat menyalakan `diskon_selama_isolir`. Tanggal isolir tetap di tanggal jatuh tempo. Mode `prepaid_30hari` memindahkan tanggal isolir mengikuti tanggal bayar. Rincian ada di `docs/logika-isolir.md`. |
 | **Jatuh Tempo & Prorata** | Jatuh tempo default tanggal 11 pukul 00:00 Asia/Jakarta. Prorata pasang baru, potongan cuti, dan aktif kembali memakai rumus yang sama: `harga_paket x hari_layanan / jumlah_hari_periode`, dibulatkan ke rupiah terdekat (0,5 ke atas). Hari pertama layanan pada potongan itu dihitung. `jumlah_hari_periode` adalah jumlah hari kalender bulan tagihan. |
 
 ---
@@ -1046,6 +1046,7 @@ erDiagram
         date bypass_until
         bigint bypass_approved_by
         date next_isolir_at
+        bool diskon_selama_isolir
         string acs_device_id
         decimal latitude
         decimal longitude
