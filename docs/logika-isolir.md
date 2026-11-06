@@ -1,6 +1,6 @@
 # Spesifikasi Logika Isolir
 
-> Versi: 2.0 | Tanggal: 6 November 2026
+> Versi: 2.1 | Tanggal: 6 November 2026
 > Sistem: pra-bayar
 > Mekanisme: IP statis dimasukkan ke address-list Mikrotik. Semua pelanggan memakai IP statis. Kolom `tipe_koneksi` hanya catatan teknis dan tidak mengubah cara isolir.
 
@@ -84,6 +84,8 @@ Jika pelanggan sedang terisolir saat bayar:
     reaktivasi
 ```
 
+Pembayaran selama `isolir_sementara` tidak memakai rumus 30 hari itu. Tanggal berikutnya mengikuti `hari_isolir`, seperti pada bagian toleransi sementara.
+
 Pada tanggal `masa_aktif_hingga` itu sendiri, job pukul 00:05 WIB sudah mengisolir. Simulasi lama yang memakai operator `>` salah. Contoh yang berlaku:
 
 ```
@@ -129,6 +131,26 @@ Setiap router pelanggan punya satu baris log. IP selalu diambil dari `pelanggan_
 Pelanggan tidak ditandai `diisolir` atau `aktif` sebelum semua router yang dituju sukses. Selama `menunggu_sinkron` atau `sebagian`, layar admin menunjukkan router mana yang belum sama dengan database.
 
 Percobaan otomatis: 10 kali termasuk percobaan pertama, jeda 5 menit, hanya untuk router yang gagal. Setelah habis, kirim alert ke dashboard, email, dan Telegram. Tombol ulang ada di halaman pelanggan dan di daftar alert. Router yang sudah sukses tidak diubah lagi.
+
+## Toleransi sementara
+
+Pelanggan yang sudah `diisolir` dapat diberi toleransi beberapa hari. Ini berlaku untuk setiap `batas_tunggakan` dan kedua `siklus_tagihan`.
+
+Admin mengisi jumlah hari dan keterangan. Sistem menyimpan tanggal isolir yang sedang berlaku, lalu:
+
+- `isolir_sementara` = tanggal isolir terakhir ditambah jumlah hari kalender
+- layanan dinyalakan kembali lewat alur reaktivasi yang sama
+- tanggal isolir tetap, yaitu `hari_isolir`, tidak diubah
+
+Contoh: isolir terakhir 5 November, toleransi 5 hari. `isolir_sementara` menjadi 10 November dan status tujuan adalah `aktif`. 28 November ditambah 5 hari menjadi 3 Desember.
+
+Sampai tanggal `isolir_sementara`, scheduler tidak mengisolir walaupun tunggakan masih melewati batas atau `masa_aktif_hingga` sudah lewat. Pada tanggal itu, bila belum ada pembayaran 1 bulan selama toleransi, pelanggan diisolir lagi dan `isolir_sementara` dikosongkan. `hari_isolir` tetap 5.
+
+Bila pelanggan membayar 1 bulan pada atau sebelum `isolir_sementara`, tanggal sementara dihapus. Isolir berikutnya adalah tanggal `hari_isolir` yang pertama sesudah tanggal bayar. Pembayaran 10 November dengan `hari_isolir` 5 menghasilkan isolir berikutnya 5 Desember, bukan 10 Desember dan bukan 10 November ditambah 30 hari. Dua bulan memajukan dua tanggal `hari_isolir`. Pembayaran pada tanggal 5 sendiri memajukan ke tanggal 5 bulan berikutnya.
+
+Pada `prepaid_30hari`, `masa_aktif_hingga` diisi dengan tanggal isolir berikutnya itu. Pada siklus `tetap`, tanggal jatuh tempo tidak pindah. Scheduler tidak mengisolir sebelum tanggal itu. Sesudah tanggal itu, batas tunggakan dan siklus berjalan seperti biasa. Sisa tagihan yang belum tertutup tetap tersimpan.
+
+Toleransi baru dihitung lagi dari tanggal isolir terakhir, bukan dari `isolir_sementara` yang lama, supaya tanggal tetap tidak bergeser. Permintaan ini bukan bypass dan tidak menunggu persetujuan kedua.
 
 ## Isolir manual dan bypass
 
@@ -185,6 +207,8 @@ Tambahan pada `pelanggan`:
 | `bypass_approved_by` | bigint atau null | User Admin Global yang menyetujui |
 | `bypass_note` | text atau null | Alasan bypass |
 | `next_isolir_at` | date atau null | Proyeksi untuk layar admin, bukan pemicu job |
+| `hari_isolir` | integer | Tanggal tetap, 1 sampai 31. Tidak berubah karena toleransi atau tanggal bayar. |
+| `isolir_sementara` | date atau null | Sekali jalan. Scheduler tidak mengisolir sebelum tanggal ini. |
 | `diskon_selama_isolir` | boolean | Default false. Hanya dipakai siklus `tetap`. |
 
 `log_isolir` satu baris per percobaan per Mikrotik: mode saat itu, jumlah tunggakan, salinan masa aktif, `status_api` (`pending`, `sukses`, `gagal`), dan `retry_count`.

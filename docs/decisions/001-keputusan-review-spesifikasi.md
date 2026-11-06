@@ -21,6 +21,7 @@ Versi 0.3 cara kerja dan versi 1.2 logika isolir memakai tiga default isolir, sa
 - Impor pelanggan lama memakai `isolir_mulai_evaluasi`. Mutasi uang yang dibatalkan menulis jurnal balik.
 - Cuti tidak menagih tanggal cuti. Tagihan periode berjalan dipotong sampai sehari sebelum `cuti_mulai`. Aktif kembali di tengah bulan membuat tagihan prorata tersendiri sampai akhir bulan, dan tagihan itu masuk tunggakan.
 - `diskon_selama_isolir` adalah centang pada siklus `tetap`. Diskon mengurangi tagihan atas hari terisolir, dan tanggal jatuh tempo tidak berubah. `prepaid_30hari` tidak memakai pilihan ini. Satu tagihan langganan yang sudah lewat jatuh tempo memutus pelanggan dengan `batas_tunggakan = 1`, termasuk tagihan bulan lain.
+- `isolir_sementara` adalah penundaan sekali jalan dari tanggal isolir terakhir. Pembayaran satu bulan selama penundaan itu mengembalikan jadwal ke `hari_isolir`, termasuk pada `prepaid_30hari`.
 - Bulan tanpa hari layanan tidak punya tagihan dan tidak punya kuitansi. Aktivasi kembali di tengah bulan membuat tagihan prorata sampai akhir bulan. Tidak adanya tagihan tidak membuka isolir.
 - Tombol simulasi admin menjumlahkan sisa tunggakan dan prorata aktivasi tanpa menyimpan apa pun.
 

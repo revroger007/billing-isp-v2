@@ -70,7 +70,7 @@ flowchart TD
 | **Status Cuti / Suspend Sementara (*Seasonal Freeze*)** | Selama `cuti_mulai` sampai `cuti_selesai` (kedua tanggal termasuk), scheduler tidak menerbitkan tagihan langganan bulan penuh dan tidak mengevaluasi isolir. Tidak ada biaya sewa port. Tagihan periode yang sedang berjalan dipotong prorata, dan hari aktif kembali ditagih prorata tersendiri. Lihat bagian pemecahan tagihan saat cuti. |
 | **Paket Layanan** | Harga paket adalah integer rupiah yang sudah termasuk PPN. Itu nominal yang ditagih, dipotong dompet, dan dicetak. Tidak ada perhitungan PPN kedua di kasir. |
 | **Mikrotik (Many-to-Many)** | Terhubung ke 1 atau banyak Mikrotik via tabel pivot `pelanggan_mikrotik` (IP statis per link) |
-| **Isolir** | Pelanggan baru: `isolir_enabled = true`, `batas_tunggakan = 2`, `siklus_tagihan = tetap`. Batas `1` memutus pada satu tagihan lewat jatuh tempo. Batas kosong tidak pernah diisolir scheduler. Siklus `prepaid_30hari` memindahkan tanggal isolir dari tanggal bayar. Centang `diskon_selama_isolir` hanya pada siklus `tetap`. Rincian ada di `docs/logika-isolir.md`. |
+| **Isolir** | Pelanggan baru: `isolir_enabled = true`, `batas_tunggakan = 2`, `siklus_tagihan = tetap`. Batas `1` memutus pada satu tagihan lewat jatuh tempo. Batas kosong tidak pernah diisolir scheduler. Siklus `prepaid_30hari` memindahkan tanggal isolir dari tanggal bayar, kecuali pembayaran dilakukan selama `isolir_sementara`. Centang `diskon_selama_isolir` hanya pada siklus `tetap`. Rincian ada di `docs/logika-isolir.md`. |
 | **Jatuh Tempo & Prorata** | Jatuh tempo default tanggal 11 pukul 00:00 Asia/Jakarta. Prorata pasang baru, potongan cuti, dan aktif kembali memakai rumus yang sama: `harga_paket x hari_layanan / jumlah_hari_periode`, dibulatkan ke rupiah terdekat (0,5 ke atas). Hari pertama layanan pada potongan itu dihitung. `jumlah_hari_periode` adalah jumlah hari kalender bulan tagihan. |
 
 ---
@@ -1093,6 +1093,8 @@ erDiagram
         date bypass_until
         bigint bypass_approved_by
         date next_isolir_at
+        int hari_isolir
+        date isolir_sementara
         bool diskon_selama_isolir
         string acs_device_id
         decimal latitude
