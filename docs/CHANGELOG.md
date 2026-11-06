@@ -8,6 +8,7 @@ Spesifikasi diselaraskan dengan review rancangan.
 - Cuti memotong tagihan bulan berjalan secara prorata sampai sehari sebelum cuti. Aktif kembali di tengah bulan menerbitkan prorata baru sampai akhir bulan. Keduanya tetap invoice tunggakan.
 - Tagihan langganan hanya menghitung hari layanan. Hari cuti dan hari putus tidak ditagih.
 - Penundaan isolir hanya lewat `isolir_ditunda_hingga`, dengan alasan `toleransi` atau `bypass`. Pembayaran satu bulan saat toleransi mengembalikan jadwal ke `hari_isolir`.
+- Komentar address-list isolir berisi nomor pelanggan dan nama, paling banyak 128 karakter. Nomor pelanggan tidak dipotong.
 - Bulan yang terisolir penuh tidak diterbitkan, sehingga tidak ada kuitansi bulan itu. Aktivasi di tengah bulan berikutnya menerbitkan prorata seperti pasang baru.
 - Admin punya tombol simulasi biaya aktivasi dan tunggakan. Hasilnya pratinjau, tidak menulis tagihan atau isolir.
 - Uang, PPN, prorata, baris tagihan, dan jurnal balik dikunci sebagai integer rupiah.
