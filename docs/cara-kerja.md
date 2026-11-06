@@ -189,6 +189,31 @@ Tagihan baru, layanan 8-31 Januari
 Jatuh tempo tagihan ini 11 Januari, karena tanggal 11 belum lewat
 ```
 
+#### Simulasi biaya aktivasi dan tunggakan
+
+Di halaman pelanggan, Admin Global dan Admin Wilayah punya tombol **Simulasi biaya aktivasi + tunggakan**. Tombol ini hanya menghitung. Tidak membuat tagihan, tidak mencatat pembayaran, tidak mengubah isolir, dan tidak mencetak kuitansi.
+
+Admin mengisi tanggal aktivasi. Kosong berarti hari ini di Asia/Jakarta. Hasilnya menampilkan:
+
+- Setiap tagihan langganan yang masih punya `sisa` dan statusnya bukan `batal`: nomor, rentang layanan, dan sisa.
+- Bulan di antara layanan terakhir dan tanggal aktivasi yang tidak diterbitkan: ditulis tidak ditagih, bukan tagihan nol.
+- Biaya aktivasi yang belum terbit. Tanggal 1 memakai harga penuh. Tanggal lain memakai prorata dari tanggal aktivasi sampai akhir bulan.
+- Biaya pasang hanya bila pelanggan belum terpasang dan biaya itu sudah diisi. Biaya pasang tetap tidak dihitung sebagai tunggakan isolir.
+- Bila mode `jatuh_tempo` dan `diskon_selama_isolir` menyala, baris diskon untuk hari `diisolir` pada tagihan yang masih terbuka. Hari aktivasi tidak didiskon.
+- Jumlah yang harus dibayar = sisa tunggakan + biaya aktivasi + biaya pasang - diskon.
+- Jumlah tagihan langganan yang belum lunas bila aktivasi dilakukan, plus tanggal isolir berikutnya. Pada `jatuh_tempo` tanggal itu tidak pindah. Pada `prepaid_30hari` tanggal itu adalah tanggal aktivasi ditambah 30 hari hanya sebagai pratinjau, belum disimpan.
+
+Contoh pratinjau untuk pelanggan yang diisolir sejak 10 November dan akan diaktifkan 8 Januari, harga Rp150.000:
+
+```
+November, sisa tagihan tersimpan     mengikuti invoice November
+Desember                             tidak ditagih
+8-31 Januari                         Rp116.129
+Jumlah                               sisa November + Rp116.129
+```
+
+Menyimpan tagihan dan pembayaran tetap lewat aksi bayar atau aktivasi yang terpisah.
+
 ---
 
 ### 5. 💳 Manajemen Pembayaran & Gateway Abstraction
