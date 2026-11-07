@@ -1,6 +1,6 @@
 # 🌐 Rancangan Aplikasi Billing Internet — Microprovider / Mini ISP
 
-> Versi: 2.28 — Tahap 1: Definisi Fitur
+> Versi: 2.29 — Tahap 1: Definisi Fitur
 > Tanggal: 7 November 2026
 
 Keputusan yang mengunci uang, isolir, peran, dan batas tahap awal ada di `docs/decisions/001-keputusan-review-spesifikasi.md`. Jika kalimat di bawah berbeda dengan keputusan itu, keputusan yang dipakai.
@@ -64,11 +64,11 @@ flowchart TD
 | **Topologi Sumber Sambungan Fleksibel** | **Mengakomodasi Realita Lapangan RT/RW Net:** Pelanggan tidak dipaksa harus selalu dari tiang ODP resmi. Disediakan 4 pilihan sumber koneksi:<br>1. **ODP Tiang (Standar Fiber):** Tersambung ke tiang ODP resmi (pilih ODP dan Nomor Port).<br>2. **Splitter Rumah Tetangga (Sub-Splitter / Numpang):** Mengambil sinyal optik dari splitter kecil (misal ratio 1:2 atau 1:4) yang dititipkan di rumah tetangga terdekat (pilih nama tetangga *parent* & catatan posisi box di teras/atap).<br>3. **Estafet HTB / Switch LAN:** Pelanggan dicolok kabel LAN UTP dari media converter HTB / Switch Hub yang dititipkan di rumah warga atau tiang gang (pilih nama warga sumber HTB & port switch).<br>4. **Koneksi Langsung:** Ditarik langsung dari switch/router kantor pusat. |
 | **Peta Pohon Dependensi (*Parent-Child Tree*)** | **Kunci Diagnosa Gangguan:** Jika 3 rumah estafet HTB mati bersamaan, sistem langsung menandai bahwa sumber masalahnya berasal dari **titik rumah induk (parent)** yang mati lampu atau adaptor HTB-nya tercabut, bukan kabel jalanan yang putus! |
 | **Login Portal Pelanggan** | Username, email, nomor HP, dan nomor pelanggan. Google hanya menaut ke akun yang emailnya sudah sama dan tidak membuat akun pelanggan baru. |
-| **Data router pelanggan** | Satu pelanggan dapat memiliki lebih dari satu router. Setiap router disimpan di `ROUTER_PELANGGAN`: SSID, password WiFi, IP address, gateway, serta merk dan tipe modem. Login standar (`username_standar`, `password_standar`) tampil untuk teknisi. Login superadmin hanya tampil untuk pemegang izin `router_superadmin`. Super Admin dan NOC memegang izin itu. Semua password terenkripsi. |
-| **Login web perangkat WiFi** | Login standar dan superadmin ada pada `ROUTER_PELANGGAN`, bukan pada baris pelanggan. Teknisi melihat login standar. Pemegang `router_superadmin` melihat login superadmin. Teknisi tidak menerima kolom superadmin lewat API. |
+| **Data router pelanggan** | Satu pelanggan dapat memiliki lebih dari satu router. Setiap router disimpan di `ROUTER_PELANGGAN`: SSID, password WiFi, IP address, gateway, serta merk dan tipe modem. Bila `perangkat_id` terisi, login dibaca dari `PERANGKAT_INVENTARIS` dan kolom login di router dikosongkan. Router milik pelanggan menyimpan `username_standar` dan `password_standar` yang tampil untuk teknisi, plus login superadmin yang hanya tampil untuk pemegang izin `router_superadmin`. Izin yang sama dipakai di layar inventaris. Super Admin dan NOC memegang izin itu. Semua password terenkripsi dan tidak disalin antar tabel. |
+| **Login web perangkat WiFi** | Login standar dan superadmin ada pada satu tabel saja. Perangkat inventaris yang terpasang dibaca dari `PERANGKAT_INVENTARIS`. Router milik pelanggan menyimpan login di `ROUTER_PELANGGAN`. Teknisi melihat login standar. Pemegang `router_superadmin` melihat login superadmin di kedua layar. Teknisi tidak menerima kolom superadmin lewat API. |
 | **Akses Teknisi Saat Perbaikan & Tombol WA** | **Kemudahan Teknisi di Lapangan:**<br>Saat menerima tiket servis/perbaikan, teknisi dapat langsung membuka tab data teknis (melihat SSID, password WiFi, merk alat, tanggal pasang, dan mengunduh file backup config).<br>• **Tombol `[📲 Hubungi Pelanggan via WA]`:** Satu sentuhan di HP teknisi langsung membuka chat WhatsApp ke pelanggan bersangkutan untuk konfirmasi janji temu atau laporan kedatangan. |
 | **Alur Request Penggantian SSID & Password WiFi** | **Prosedur Terverifikasi Anti-Salah Setting:**<br>1. **Pengajuan:** Admin Wilayah atau Teknisi di lapangan membuka form *Request Ubah WiFi* $\rightarrow$ input SSID Baru & Password Baru $\rightarrow$ status `menunggu_verifikasi_noc`.<br>2. **Validasi & Eksekusi NOC:** NOC memvalidasi permintaan, lalu mengeksekusi via API TR-069 GenieACS (atau konfigurasi manual).<br>3. **Pembaruan Otomatis:** Begitu NOC menekan **`[Verifikasi & Simpan]`**, SSID dan password baru tersimpan terenkripsi pada router pelanggan yang dipilih. Audit mencatat bahwa password berubah, tanpa menyimpan nilainya. Portal pelanggan tidak mengubah WiFi dan tidak me-reboot modem. |
-| **Status berlangganan** | Sebelum terpasang: `menunggu_verifikasi_pusat` atau `siap_pasang`. Setelah terpasang: `aktif`, `tunda_isolir`, atau `isolir`. `berhenti` menutup langganan. `next_isolir` adalah tanggal putus berikutnya. `last_suspend` dan `last_active` menyimpan kejadian terakhir. Riwayat lengkap ada di `RIWAYAT_SUSPEND`. `status_layanan` tetap status sinkronisasi router, bukan status langganan. |
+| **Status berlangganan** | Sebelum terpasang: `menunggu_verifikasi_pusat` atau `siap_pasang`. Setelah terpasang: `aktif`, `tunda_isolir`, atau `isolir`. `isolir` diisi hanya saat `status_layanan` menjadi `putus`. `menunggu_router`, `gagal_putus`, dan `tidak_serempak` tetap `aktif`. `berhenti` menutup langganan. Cuti adalah satu baris `RIWAYAT_SUSPEND` berjenis `cuti` yang `selesai`-nya kosong. `next_isolir` adalah tanggal putus berikutnya. `last_suspend` dan `last_active` menyalin baris riwayat yang sedang berlaku. `status_layanan` tetap status sinkronisasi router. |
 | **Paket Layanan** | Harga paket adalah integer rupiah yang sudah termasuk PPN. Itu nominal yang ditagih, dipotong dompet, dan dicetak. Tidak ada perhitungan PPN kedua di kasir. |
 | **Mikrotik (Many-to-Many)** | Terhubung ke 1 atau banyak Mikrotik via tabel pivot `pelanggan_mikrotik` (IP statis per link) |
 | **Isolir** | Pelanggan baru: `batas_tunggakan = 2`, `siklus_tagihan = tanggal_tetap`. Batas `1` memutus pada satu tagihan lewat jatuh tempo. Batas kosong tidak pernah diputus scheduler. Siklus `prabayar` mengisi `next_isolir` dari tanggal bayar ditambah 30 hari, kecuali pembayaran terjadi selama penundaan toleransi. Rincian ada di `docs/logika-isolir.md`. |
@@ -291,10 +291,10 @@ flowchart TD
 |---|---|
 | **Batas per pelanggan** | `batas_tunggakan` default 2. Kosong berarti scheduler tidak memutus. |
 | **Putus manual** | Menulis `sumber_putus = manual`. Pembayaran tidak menyalakan layanan ini. |
-| **Isolir otomatis** | Job 00:05 Asia/Jakarta menurut `docs/logika-isolir.md`, setelah pelanggan terpasang. |
+| **Isolir otomatis** | Tanggal 1: setelah autopay commit. Hari lain: job 00:05 Asia/Jakarta. Aturan lengkap ada di `docs/logika-isolir.md`, setelah pelanggan terpasang. |
 | **Nyala otomatis** | Saat syarat putus tidak terpenuhi dan `next_isolir` sudah dihitung ulang. |
 | **Reaktivasi manual** | Admin Global, dengan keterangan. Bypass sementara butuh persetujuan Admin Global yang bukan pengaju. |
-| **Log isolir** | Satu baris per Mikrotik: waktu, IP, status API, pemicu. |
+| **Log isolir** | `LOG_API_MIKROTIK` satu baris per percobaan per Mikrotik. `RIWAYAT_ISOLIR` satu baris per periode putus pelanggan, dibuat saat `status_layanan` menjadi `putus`. |
 
 ---
 
@@ -694,6 +694,12 @@ Untuk mendeteksi status koneksi pelanggan secara instan tanpa perlu software pih
 | **Inspeksi Fisik via Tabel ARP** | Selain ping, aplikasi membaca tabel `/ip arp` di Mikrotik. Jika MAC Address modem pelanggan hilang, sistem menampilkan peringatan: *"Kemungkinan kabel drop optik putus atau modem pelanggan mati lampu"*. |
 | **Validasi Pasca Gangguan Massal (Multi-Ping Batch)** | Saat teknisi selesai memperbaiki gangguan massal di suatu area (misal Area Gawis), ada tombol **`[🔍 Tes Koneksi Semua Pelanggan Terdampak]`**.<br>• Sistem otomatis memvalidasi seluruh pelanggan di area tersebut.<br>• Jika ada 1-2 pelanggan yang masih merah/offline (misal kabel drop rumahnya tersangkut truk), tersedia tombol **`[✂️ Pisahkan Jadi Tugas Spesifik]`** agar teknisi di lapangan langsung diarahkan ke rumah pelanggan tersebut sebelum meninggalkan lokasi. |
 
+Riwayat naik-turun ping tidak disimpan di Mikrotik dan tidak disimpan di database billing. Zabbix proxy di jalur pelanggan mengirim ICMP ke IP statis. Mikrotik tidak membuat entri netwatch dan tidak menjalankan skrip saat status berubah. Grafik di profil dan di peta meminta deret itu ke Zabbix saat dibuka.
+
+Trigger ping tiap rumah bergantung pada trigger induknya. Induk dipilih dari yang paling dekat: segmen kabel atau port Mikrotik, lalu ODP, lalu rumah tempat splitter numpang. Selama induk berstatus putus, trigger rumah di belakangnya tidak mengirim alert. Riwayat ping rumah tetap tersimpan di Zabbix.
+
+Webhook ping atau redaman untuk pelanggan yang induknya sedang punya agenda terbuka tidak membuat tiket baru dan tidak mengirim Telegram kedua. Pelanggan ditambahkan ke agenda itu. Satu rumah tetap mendapat tiket sendiri bila induknya nyala. Setelah induk pulih, pelanggan yang masih mati tidak ikut tertutup.
+
 #### F. Buku Rekam Jejak Gangguan Pelanggan Terpadu (*Customer Incident Timeline*)
 Untuk menjawab komplain pelanggan yang merasa *"Internet saya kok sering kendala?"*, profil setiap pelanggan dilengkapi **Timeline Riwayat Gangguan Otomatis** yang menggabungkan seluruh catatan kendala teknis masa lalu:
 
@@ -879,7 +885,7 @@ flowchart TD
     end
 
     subgraph BILLING_APP["4. Aplikasi Billing & Operasional Lapangan (Zero-Storage Time-Series)"]
-        WH --> TIKET["Buat tiket preventif bila belum ada tiket terbuka untuk ONU itu\nAngka dBm hanya di teks tiket, PELANGGAN tidak diubah"]
+        WH --> TIKET["Bila induk sedang putus, tempelkan ONU ke agenda induk\nBila induk nyala dan belum ada tiket ONU itu, buat satu tiket\nAngka dBm hanya di teks tiket, PELANGGAN tidak diubah"]
         TIKET --> MAP["Lapisan optik membaca problem Zabbix saat dibuka\nTidak menulis warna ke pelanggan"]
         
         NOC_LIVE["NOC / Teknisi Klik [⚡ Cek Redaman Live] di Peta"] -->|On-Demand Query 1 Pelanggan| OLT
@@ -892,9 +898,9 @@ flowchart TD
 | Status | Rentang Rx Power (dBm) | Warna Peta | Dampak Jaringan | Tindakan Sistem Billing |
 |---|---|---|---|---|
 | **Normal / Prima** | lebih besar dari $-23.0$ dBm sampai $-15.0$ dBm | 🟢 **Emerald (Hijau)** | Koneksi sangat stabil, tidak ada jitter/packet loss. | Tidak menulis pelanggan. Angka hanya tampil bila cek live diminta. |
-| **Warning (Drop Mendekati Batas)** | $-23.0$ dBm sampai lebih besar dari $-27.0$ dBm | 🟡 **Amber (Kuning)** | Masih hidup tapi rentan fluktuatif saat hujan/suhu tinggi (margin aman menipis). | Zabbix mengirim webhook bila kondisi bertahan lebih dari 30 menit. Billing membuat tiket preventif. |
-| **Kritis (Over-Limit / Rusak)** | $\le -27.0\text{ dBm}$ | 🔴 **Rose (Merah)** | ONT mengalami link drop berulang (*frequent disconnect*), paket loss tinggi, throughput anjlok. | Webhook membuat tiket darurat. Warna hanya muncul saat lapisan optik dibuka. |
-| **LOS / Putus Total** | $\le -35.0\text{ dBm}$ atau Link Down | ⚫ **Zinc (Abu-abu Gelap)** | Sinyal hilang total (core putus, konektor tercabut, atau listrik padam). | Webhook membuat tiket. Pemeriksaan mengecek ODP induk dan tetangga lewat problem Zabbix, bukan lewat kolom pelanggan. |
+| **Warning (Drop Mendekati Batas)** | $-23.0$ dBm sampai lebih besar dari $-27.0$ dBm | 🟡 **Amber (Kuning)** | Masih hidup tapi rentan fluktuatif saat hujan/suhu tinggi (margin aman menipis). | Zabbix mengirim webhook bila kondisi bertahan lebih dari 30 menit. Bila induk sedang putus, ONU menempel pada agenda induk. Bila induk nyala, billing membuat satu tiket preventif. |
+| **Kritis (Over-Limit / Rusak)** | $\le -27.0\text{ dBm}$ | 🔴 **Rose (Merah)** | ONT mengalami link drop berulang (*frequent disconnect*), paket loss tinggi, throughput anjlok. | Webhook mengikuti aturan induk yang sama. Warna hanya muncul saat lapisan optik dibuka. |
+| **LOS / Putus Total** | $\le -35.0\text{ dBm}$ atau Link Down | ⚫ **Zinc (Abu-abu Gelap)** | Sinyal hilang total (core putus, konektor tercabut, atau listrik padam). | Webhook mengikuti aturan induk yang sama. Pemeriksaan mengecek ODP induk dan tetangga lewat problem Zabbix, bukan lewat kolom pelanggan. |
 
 ---
 
@@ -1238,8 +1244,6 @@ erDiagram
         string foto_instalasi
         string file_backup_config
         string status_langganan
-        date cuti_mulai
-        date cuti_selesai
         datetime last_suspend
         text last_suspend_note
         datetime last_active
@@ -1257,6 +1261,7 @@ erDiagram
         string ip_address
         string gateway
         string merk_tipe
+        bigint perangkat_id
         string username_standar
         string password_standar
         string username_superadmin
@@ -1715,6 +1720,7 @@ erDiagram
     PELANGGAN ||--o{ TAGIHAN : "punya"
     PELANGGAN ||--o{ HUTANG_MENGENDAP : "punya catatan evaluasi"
     PELANGGAN ||--o{ ROUTER_PELANGGAN : "memakai router"
+    ROUTER_PELANGGAN }o--o| PERANGKAT_INVENTARIS : "membaca login perangkat"
     PELANGGAN ||--o{ RIWAYAT_SUSPEND : "punya riwayat suspend"
     PELANGGAN ||--o{ PEMBAYARAN : "membayar"
     PEMBAYARAN ||--o{ ALOKASI_PEMBAYARAN : "terbagi ke tagihan"
@@ -1745,6 +1751,7 @@ Kendala unik pada tabel:
 - `PEMBAYARAN`: `idempotency_key`, serta `gateway_transaction_id` bila terisi
 - `PERIODE_KAS`: `(user_id, periode)`
 - `RIWAYAT_ISOLIR`: satu baris dengan `nyala_kembali` kosong per pelanggan
+- `RIWAYAT_SUSPEND`: satu baris dengan `selesai` kosong per pelanggan per `jenis`
 
 > [!NOTE]
 > Tabel pivot `pelanggan_mikrotik` adalah kunci dari arsitektur multi-Mikrotik. Tiap baris menyimpan tipe koneksi dan credential spesifik pelanggan **di Mikrotik tersebut** — karena username/IP bisa berbeda antar Mikrotik.
@@ -1757,7 +1764,7 @@ Aplikasi dirancang memenuhi standar **OWASP ASVS** untuk aplikasi jaringan dan f
 
 | Lapisan Keamanan | Implementasi Teknis |
 |---|---|
-| **Enkripsi rahasia** | Password API Mikrotik, SNMP community, PPPoE, WiFi, login standar router, login superadmin router, `password_baru` pada ajuan WiFi, dan password modem di inventaris disimpan dengan `Crypt::encryptString`. Izin `router_superadmin` diperlukan untuk membaca login superadmin. Audit perubahan WiFi tidak menyimpan nilai password. Ekspor pelanggan tidak memuat rahasia. Menyembunyikan kolom di layar tidak menggantikan Policy. |
+| **Enkripsi rahasia** | Password API Mikrotik, SNMP community, PPPoE, WiFi, login standar, login superadmin, `password_baru` pada ajuan WiFi disimpan dengan `Crypt::encryptString`. Login perangkat inventaris yang terpasang hanya ada di `PERANGKAT_INVENTARIS`. Router milik pelanggan menyimpan login di `ROUTER_PELANGGAN`. Izin `router_superadmin` diperlukan untuk membaca login superadmin di kedua layar. Audit perubahan WiFi tidak menyimpan nilai password. Ekspor pelanggan tidak memuat rahasia. Menyembunyikan kolom di layar tidak menggantikan Policy. |
 | **Dua akun API Mikrotik** | Akun isolir hanya boleh membaca dan menulis address-list. Akun NOC terpisah yang boleh mengubah interface hanya dipakai untuk matikan laser SFP, dan setiap aksi itu diaudit. |
 | **Integritas Finansial & Concurrency** | Mutasi uang (bayar, top-up, komisi) wajib dibungkus `DB::transaction()` dan **Pessimistic Locking (`lockForUpdate()`)** untuk kebal dari race condition / klik ganda. |
 | **Perlindungan Berkas Privat (KTP & Foto)** | Foto KTP dan berkas fisik disimpan di **Private Storage Disk**. Hanya dapat diakses lewat *Temporary Signed URL* bertenggat waktu oleh admin yang terotentikasi. |

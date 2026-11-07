@@ -2,6 +2,8 @@
 
 ## 2026-11-07
 
+- Tunggakan isolir hanya tagihan penuh yang `terbayar = 0`. Biaya pasang masuk hutang mengendap. `status_langganan` menjadi `isolir` saat router benar-benar `putus`. Cuti hanya lewat satu baris `RIWAYAT_SUSPEND`.
+- Riwayat ping ada di Zabbix. Alert rumah digabung ke agenda induk yang sedang putus. Login perangkat tidak disalin ke dua tabel.
 - Redaman tidak disimpan di database aplikasi. Cek live dan lapisan optik meminta angka saat dibuka. Riwayat naik-turun 7 hari dibuka dari profil pelanggan dan peta, dengan data diminta ke Zabbix. Webhook alert membuat tiket tanpa mengubah baris pelanggan.
 - Pelanggan dapat memiliki banyak router di `ROUTER_PELANGGAN`. Riwayat suspend ada di `RIWAYAT_SUSPEND`. Snapshot terakhir ada di `last_suspend` dan `last_active`. Scheduler membaca `next_isolir`.
 - Tagihan `konversi` dapat ditagih, tetapi tidak dihitung isolir dan tidak menambah `N`. Komisi reseller dan `N` transfer menunggu bukti `sudah_diverifikasi`.
@@ -20,6 +22,8 @@
 - Log API, kolektor, SNMP cadangan, webhook, WiFi, Google, dan batas wilayah diselaraskan. Primary key dan kolom rupiah memakai `bigint`.
 
 ## 2026-11-06
+
+Bagian ini riwayat penulisan. Aturan yang berlaku ada di bagian 2026-11-07 dan di `docs/decisions/001-keputusan-review-spesifikasi.md`.
 
 Spesifikasi diselaraskan dengan review rancangan.
 

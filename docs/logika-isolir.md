@@ -1,6 +1,6 @@
 # Spesifikasi Logika Isolir
 
-> Versi: 2.17 | Tanggal: 7 November 2026
+> Versi: 2.18 | Tanggal: 7 November 2026
 > Sistem: pra-bayar
 > Mekanisme: IP statis dimasukkan ke address-list Mikrotik. Semua pelanggan memakai IP statis. Kolom `tipe_koneksi` hanya catatan teknis dan tidak mengubah cara isolir.
 
@@ -25,7 +25,7 @@ Scheduler melewati pelanggan bila salah satu ini berlaku:
 
 - `tanggal_instalasi` masih kosong
 - hari ini masih sebelum `isolir_mulai_evaluasi`
-- hari ini berada di dalam cuti pada `RIWAYAT_SUSPEND` yang belum selesai, atau `status_langganan = tunda_isolir`
+- ada `RIWAYAT_SUSPEND` berjenis `cuti` yang `selesai`-nya masih kosong. Pada saat itu `status_langganan` adalah `tunda_isolir`. Baris isolir yang belum selesai tidak membuat scheduler melewati pelanggan.
 - `isolir_ditunda_hingga` terisi dan hari ini masih sebelum tanggal itu
 
 Pada tanggal `isolir_ditunda_hingga` sendiri, job pukul 00:05 mengisolir bila pembayaran yang membatalkan penundaan belum tercatat. Pembayaran yang masuk kemudian pada hari yang sama tetap diproses dan dapat menyalakan layanan lagi.
@@ -34,7 +34,9 @@ Pada tanggal 1, generate tagihan dan autopay dompet mulai pukul 00:01 Asia/Jakar
 
 Job isolir membandingkan tanggal kalender Jakarta, bukan tanggal UTC.
 
-Saat isolir dimulai, `status_langganan` menjadi `isolir`, `last_suspend` diisi waktu itu, dan `last_suspend_note` diisi `isolir`. Saat cuti dimulai, `status_langganan` menjadi `tunda_isolir`, `last_suspend` diisi waktu mulai, dan catatan dapat `cuti sementara` atau teks lain. Saat layanan kembali, `last_active` diisi waktu itu. Catatan otomatis adalah `buka isolir` atau `selesai cuti`. Catatan lain boleh diisi manual. Setiap mulai dan selesai menulis satu baris `RIWAYAT_SUSPEND`. `next_isolir` tetap tanggal yang dibaca scheduler.
+`status_langganan` menjadi `isolir` hanya saat `status_layanan` menjadi `putus`. `menunggu_router`, `gagal_putus`, dan `tidak_serempak` meninggalkan `status_langganan` pada `aktif`. Pada saat `putus`, `last_suspend` dan `last_suspend_note` diisi `isolir`, satu baris `RIWAYAT_SUSPEND` berjenis `isolir` dibuat dengan `selesai` kosong, dan satu baris `RIWAYAT_ISOLIR` dibuat. `selesai` dan `nyala_kembali` diisi saat `status_layanan` menjadi `nyala`, bersama `last_active` dan catatan `buka isolir`.
+
+Cuti membuat satu baris `RIWAYAT_SUSPEND` berjenis `cuti` saat cuti dimulai. `status_langganan` menjadi `tunda_isolir`. `last_suspend` diisi dari `mulai` baris itu. Catatan dapat `cuti sementara` atau teks lain. Cuti tidak menulis `RIWAYAT_ISOLIR` dan tidak mengubah `status_layanan`. Saat cuti berakhir, `selesai` pada baris yang sama diisi. Bila layanan sedang `putus`, `status_langganan` kembali `isolir`. Bila layanan `nyala`, `status_langganan` menjadi `aktif` dan `last_active` diisi dengan catatan `selesai cuti`. Tidak ada kolom `cuti_mulai` atau `cuti_selesai`. Satu pelanggan hanya punya satu baris terbuka per `jenis`. `next_isolir` tetap tanggal yang dibaca scheduler.
 
 ## Tiga fungsi
 
@@ -214,7 +216,7 @@ Tambahan pada `pelanggan`:
 
 `log_api_mikrotik` satu baris per percobaan per Mikrotik: siklus saat itu, jumlah tunggakan, salinan `next_isolir`, IP yang ditulis, `status_api` (`pending`, `sukses`, `gagal`), dan `jumlah_percobaan`.
 
-`riwayat_isolir` satu baris per periode putus seorang pelanggan, bukan per router dan bukan per percobaan. Baris dibuat saat `status_layanan` menjadi `putus`. `nyala_kembali` tetap kosong sampai semua router berhasil menyala. `tidak_serempak` dan percobaan gagal tidak membuat baris baru. Hanya boleh ada satu baris terbuka, yaitu yang `nyala_kembali`-nya masih kosong. `sumber_putus` berisi `scheduler` atau `manual`. `sumber_nyala` berisi `scheduler`, `pembayaran`, atau `admin`.
+`riwayat_isolir` satu baris per periode putus seorang pelanggan, bukan per router dan bukan per percobaan. Baris dibuat saat `status_layanan` menjadi `putus`, bersamaan dengan baris `RIWAYAT_SUSPEND` berjenis `isolir`. `nyala_kembali` tetap kosong sampai semua router berhasil menyala, dan pada saat yang sama `selesai` baris suspend isolir diisi. `tidak_serempak` dan percobaan gagal tidak membuat baris baru. Hanya boleh ada satu baris terbuka, yaitu yang `nyala_kembali`-nya masih kosong. `sumber_putus` berisi `scheduler` atau `manual`. `sumber_nyala` berisi `scheduler`, `pembayaran`, atau `admin`. Cuti tidak menulis tabel ini.
 
 Contoh pelanggan A:
 
