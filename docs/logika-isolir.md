@@ -1,6 +1,6 @@
 # Spesifikasi Logika Isolir
 
-> Versi: 2.21 | Tanggal: 7 November 2026
+> Versi: 2.22 | Tanggal: 7 November 2026
 > Sistem: pra-bayar
 > Mekanisme: IP statis dimasukkan ke address-list Mikrotik. Semua pelanggan memakai IP statis. Kolom `tipe_koneksi` hanya catatan teknis dan tidak mengubah cara isolir.
 
@@ -146,24 +146,28 @@ Pelanggan tidak ditandai `putus` atau `nyala` sebelum semua router yang dituju s
 
 Penundaan hanya mengisi `next_isolir`. Tidak ada tanggal penundaan kedua. `alasan` pada `RIWAYAT_ISOLIR` berisi `toleransi` atau `bypass`. `disetujui_oleh` wajib bila alasan `bypass`. Penundaan baru menggantikan penundaan lama, dan audit menyimpan keduanya.
 
-Toleransi dipakai saat pelanggan sudah `putus`. Admin mengisi jumlah hari, tanpa persetujuan kedua. `mulai_putus` pada baris yang terbuka tidak diubah. Itu tanggal suspend asli.
+Toleransi dipakai saat pelanggan sudah `putus`. Admin mengisi tanggal batas, tanpa persetujuan kedua. `mulai_putus` tidak diubah.
 
-- `next_isolir` = tanggal perpanjangan yang diminta
-- baris `RIWAYAT_ISOLIR` yang terbuka diisi `alasan = toleransi`. `mulai_putus` tetap tanggal suspend pertama
-- `nyalakan_layanan` dipanggil, tetapi `nyala_kembali` tetap kosong selama perpanjangan berlangsung
-- `hari_isolir` tidak diubah
+Pada saat disetujui, baris `RIWAYAT_ISOLIR` yang terbuka menyimpan:
 
-Contoh `prabayar`: suspend asli 5 September, pelanggan minta diperpanjang sampai 10 September. `mulai_putus` tetap 5 September. `next_isolir` menjadi 10 September. Lima hari itu sudah terpakai. Tagihan yang dibayar tetap harga paket penuh. Hari mati karena telat bayar tidak mengurangi nominal.
+- `mulai_putus`: tanggal isolir pertama, tidak diubah
+- `mulai_perpanjangan`: tanggal layanan dinyalakan lagi
+- `batas_perpanjangan`: tanggal yang ditulis ke `next_isolir`
+- `alasan = toleransi`
 
-Satu bulan memberi 30 hari nyala. Sisa hari = `(N x 30) - hari terpakai`.
+`PELANGGAN` hanya menyimpan `next_isolir` sama dengan `batas_perpanjangan`. Jumlah hari tidak disimpan. Hari aktif perpanjangan = tanggal `batas_perpanjangan` dikurangi tanggal `mulai_perpanjangan`, dalam kalender Asia/Jakarta. `nyalakan_layanan` dipanggil, tetapi `nyala_kembali` tetap kosong. `last_active` diisi waktu layanan nyala lagi. `hari_isolir` tidak diubah.
 
-- Bayar pada atau sebelum 10 September: `next_isolir` = 5 September ditambah `N x 30` hari. Bayar 1 bulan menghasilkan 5 Oktober.
-- Bayar sesudah 10 September, selama 5 September ditambah `N x 30` hari masih sesudah tanggal bayar: `next_isolir` = tanggal bayar ditambah sisa hari. Bayar 1 bulan pada 20 September menghasilkan 15 Oktober. Sepuluh hari mati tidak dihapus dan tidak dijadikan bonus. Bayar 2 bulan pada 20 September menghasilkan 14 November.
-- Bila 5 September ditambah `N x 30` hari sudah lewat: bulan itu habis. `next_isolir` = tanggal bayar ditambah `N x 30` hari. Bayar 1 bulan pada 6 Oktober menghasilkan 5 November.
+Contoh: isolir 5 September. Pengajuan disetujui 7 September, `next_isolir` menjadi 10 September. `mulai_putus` = 5 September, `mulai_perpanjangan` = 7 September, `batas_perpanjangan` = 10 September. Hari aktif = 3. Dua hari di antara 5 dan 7 September tidak dihitung sebagai layanan.
 
-`nyala_kembali` baru diisi saat pembayaran itu menyalakan layanan.
+Untuk `prabayar`, sisa hari = `(N x 30) - hari aktif`. Tagihan tetap harga paket penuh.
 
-Untuk `tanggal_tetap`, `hari_isolir` tidak digeser oleh tanggal bayar. Contoh `hari_isolir` tanggal 5: bayar 1 bulan pada 10 September maupun 20 September sama-sama mengisi `next_isolir` = 5 Oktober. Hari mati di antaranya tidak mendorong tanggal 5 menjadi lebih kemudian. Bila tanggal `hari_isolir` siklus itu sudah lewat pada saat bayar, `next_isolir` adalah `hari_isolir` berikutnya sesudah tanggal bayar. `N` bulan memajukan `N` tanggal `hari_isolir` dihitung dari tanggal suspend asli, selama hasilnya masih sesudah tanggal bayar.
+- Bayar pada atau sebelum 10 September: `next_isolir` = 7 September ditambah `N x 30` hari. Bayar 1 bulan menghasilkan 7 Oktober.
+- Bayar sesudah 10 September, selama 7 September ditambah `N x 30` hari masih sesudah tanggal bayar: `next_isolir` = tanggal bayar ditambah sisa hari. Bayar 1 bulan pada 20 September menghasilkan 17 Oktober. Hari mati setelah 10 September tidak menjadi bonus. Bayar 2 bulan pada 20 September: sisa 57 hari, berakhir 16 November.
+- Bila 7 September ditambah `N x 30` hari sudah lewat: `next_isolir` = tanggal bayar ditambah `N x 30` hari.
+
+`nyala_kembali` diisi saat pembayaran itu menyalakan layanan.
+
+Untuk `tanggal_tetap`, tiga hari aktif itu tidak mengubah `hari_isolir`. Contoh `hari_isolir` tanggal 5: bayar 1 bulan pada 10 September maupun 20 September mengisi `next_isolir` = 5 Oktober. Bila tanggal siklus itu sudah lewat, `next_isolir` adalah `hari_isolir` berikutnya sesudah tanggal bayar. `N` bulan memajukan `N` tanggal `hari_isolir` dari tanggal suspend asli, selama hasilnya masih sesudah tanggal bayar.
 
 Bypass diajukan Admin Wilayah dan disetujui Admin Global. Pengaju tidak boleh menyetujui permintaannya sendiri. Bila disetujui, `next_isolir` diisi tanggal yang diminta, `alasan = bypass`, dan `disetujui_oleh` diisi pada baris `RIWAYAT_ISOLIR` yang terbuka. `nyalakan_layanan` dipanggil bila pelanggan sedang putus. Bila API gagal, permintaan tetap `disetujui` dan `status_layanan` menjadi `menunggu_router` atau `gagal_nyala`. Layar tidak boleh mengaku layanan sudah nyala sebelum semua router sukses.
 

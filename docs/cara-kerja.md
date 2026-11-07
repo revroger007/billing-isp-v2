@@ -1,6 +1,6 @@
 # 🌐 Rancangan Aplikasi Billing Internet — Microprovider / Mini ISP
 
-> Versi: 2.36 — Tahap 1: Definisi Fitur
+> Versi: 2.37 — Tahap 1: Definisi Fitur
 > Tanggal: 7 November 2026
 
 Keputusan yang mengunci uang, isolir, peran, dan batas tahap awal ada di `docs/decisions/001-keputusan-review-spesifikasi.md`. Jika kalimat di bawah berbeda dengan keputusan itu, keputusan yang dipakai.
@@ -1515,6 +1515,8 @@ erDiagram
         bigint id
         bigint pelanggan_id
         datetime mulai_putus
+        datetime mulai_perpanjangan
+        date batas_perpanjangan
         datetime nyala_kembali
         string sumber_putus
         string sumber_nyala
