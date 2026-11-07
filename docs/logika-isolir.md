@@ -1,6 +1,6 @@
 # Spesifikasi Logika Isolir
 
-> Versi: 2.19 | Tanggal: 7 November 2026
+> Versi: 2.20 | Tanggal: 7 November 2026
 > Sistem: pra-bayar
 > Mekanisme: IP statis dimasukkan ke address-list Mikrotik. Semua pelanggan memakai IP statis. Kolom `tipe_koneksi` hanya catatan teknis dan tidak mengubah cara isolir.
 
@@ -107,7 +107,7 @@ Pada tanggal `next_isolir` itu sendiri, job pukul 00:05 WIB sudah memutus. Conto
 
 `N` hanya dihitung oleh `alokasi_pembayaran`. Sisa tagihan yang belum lunas tetap menunggak. `batas_tunggakan` tidak dibaca selama siklus ini. Bila siklus dikembalikan ke `tanggal_tetap`, tunggakan yang tersisa langsung dipakai.
 
-Pembayaran selama baris `RIWAYAT_ISOLIR` yang terbuka beralasan `toleransi` tidak memakai rumus 30 hari. `next_isolir` diisi tanggal `hari_isolir` berikutnya.
+Pembayaran pada atau sebelum `next_isolir`, bila baris `RIWAYAT_ISOLIR` yang terbuka beralasan `toleransi`, memakai tanggal asli suspend. Tanggal itu adalah tanggal kalender Asia/Jakarta dari `mulai_putus` baris tersebut. `next_isolir` baru = tanggal itu ditambah `N x 30` hari. `nyala_kembali` diisi saat layanan kembali nyala. Pembayaran sesudah tanggal perpanjangan terlewati memakai tanggal bayar ditambah `N x 30` hari.
 
 ## Banyak Mikrotik
 
@@ -146,18 +146,18 @@ Pelanggan tidak ditandai `putus` atau `nyala` sebelum semua router yang dituju s
 
 Penundaan hanya mengisi `next_isolir`. Tidak ada tanggal penundaan kedua. `alasan` pada `RIWAYAT_ISOLIR` berisi `toleransi` atau `bypass`. `disetujui_oleh` wajib bila alasan `bypass`. Penundaan baru menggantikan penundaan lama, dan audit menyimpan keduanya.
 
-Toleransi dipakai saat pelanggan sudah `putus`. Admin mengisi jumlah hari, tanpa persetujuan kedua.
+Toleransi dipakai saat pelanggan sudah `putus`. Admin mengisi jumlah hari, tanpa persetujuan kedua. `mulai_putus` pada baris yang terbuka tidak diubah. Itu tanggal suspend asli.
 
-- `next_isolir` = tanggal isolir terakhir ditambah jumlah hari kalender
-- baris `RIWAYAT_ISOLIR` yang terbuka diisi `alasan = toleransi`. Bila belum ada baris terbuka, baris baru dibuat dengan `mulai_putus` kosong
-- `nyalakan_layanan` dipanggil
+- `next_isolir` = tanggal perpanjangan yang diminta
+- baris `RIWAYAT_ISOLIR` yang terbuka diisi `alasan = toleransi`. `mulai_putus` tetap tanggal suspend pertama
+- `nyalakan_layanan` dipanggil, tetapi `nyala_kembali` tetap kosong selama perpanjangan berlangsung
 - `hari_isolir` tidak diubah
 
-Saat layanan kemudian benar-benar `putus`, `mulai_putus` pada baris terbuka yang masih kosong diisi. Tidak dibuat baris kedua.
+Contoh: suspend asli 5 September, pelanggan minta diperpanjang sampai 10 September. `mulai_putus` tetap 5 September. `next_isolir` menjadi 10 September.
 
-Contoh: isolir terakhir 5 November, toleransi 5 hari. `next_isolir` menjadi 10 November. 28 November ditambah 5 hari menjadi 3 Desember.
+Bila pelanggan membayar pada atau sebelum 10 September, layanan aktif sampai tanggal suspend asli ditambah 30 hari per bulan yang dibayar. Bayar 1 bulan pada 10 September menghasilkan `next_isolir` = 5 Oktober, bukan 10 Oktober. Bayar 2 bulan menghasilkan 5 September ditambah 60 hari. `nyala_kembali` baru diisi saat pembayaran itu menyalakan layanan.
 
-Bila pelanggan membayar 1 bulan pada atau sebelum `next_isolir`, `next_isolir` menjadi tanggal `hari_isolir` yang pertama sesudah tanggal bayar. Pembayaran 10 November dengan `hari_isolir` 5 menghasilkan 5 Desember, bukan 10 Desember dan bukan 10 November ditambah 30 hari. Dua bulan memajukan dua tanggal `hari_isolir`. Pembayaran pada tanggal 5 sendiri memajukan ke tanggal 5 bulan berikutnya. Aturan ini berlaku untuk semua batas dan kedua siklus. Sisa tagihan yang belum tertutup tetap tersimpan. Sesudah `next_isolir`, batas dan siklus berjalan seperti biasa.
+Bila 10 September terlewati tanpa bayar, perpanjangan berakhir. Pembayaran sesudah itu memakai tanggal bayar ditambah `N x 30` hari. Sisa tagihan yang belum tertutup tetap tersimpan.
 
 Bypass diajukan Admin Wilayah dan disetujui Admin Global. Pengaju tidak boleh menyetujui permintaannya sendiri. Bila disetujui, `next_isolir` diisi tanggal yang diminta, `alasan = bypass`, dan `disetujui_oleh` diisi pada baris `RIWAYAT_ISOLIR` yang terbuka. `nyalakan_layanan` dipanggil bila pelanggan sedang putus. Bila API gagal, permintaan tetap `disetujui` dan `status_layanan` menjadi `menunggu_router` atau `gagal_nyala`. Layar tidak boleh mengaku layanan sudah nyala sebelum semua router sukses.
 
