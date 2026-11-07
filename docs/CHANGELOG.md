@@ -2,7 +2,7 @@
 
 ## 2026-11-07
 
-- Isolir hanya menghitung tagihan bulanan `periode_penuh` yang belum dibayar sama sekali. Pembayaran sebagian dan tagihan nonbulanan memberi tanda `tidak_tertib` serta rekomendasi `prabayar`.
+- Pelanggan dapat memiliki banyak router di `ROUTER_PELANGGAN`. Riwayat suspend ada di `RIWAYAT_SUSPEND`. Snapshot terakhir ada di `last_suspend` dan `last_active`. Scheduler membaca `next_isolir`.
 - Tagihan `konversi` dapat ditagih, tetapi tidak dihitung isolir dan tidak menambah `N`. Komisi reseller dan `N` transfer menunggu bukti `sudah_diverifikasi`.
 - Pengeluaran gaji, komisi, dan operasional dari laci menulis baris keluar pada `MUTASI_KAS`. Konversi saldo mengendap tidak menulis kas.
 - Super Admin dan `auditor_finansial` dapat menambah, mengedit, dan menghapus record saldo mengendap, serta membuat invoice dari record yang masih `mengendap`. Edit menyimpan nilai lama dan menghitung ulang saldo sesudahnya.
@@ -22,7 +22,7 @@
 
 Spesifikasi diselaraskan dengan review rancangan.
 
-- Isolir memakai `batas_tunggakan` (`null`, `1`, `2`) dan `siklus_tagihan` (`tanggal_tetap`, `prabayar`). Scheduler hanya membaca `isolir_berikutnya`.
+- Isolir memakai `batas_tunggakan` (`null`, `1`, `2`) dan `siklus_tagihan` (`tanggal_tetap`, `prabayar`). Scheduler hanya membaca `next_isolir`.
 - Cuti memotong tagihan bulan berjalan secara prorata sampai sehari sebelum cuti. Aktif kembali di tengah bulan menerbitkan prorata baru sampai akhir bulan. Keduanya tetap invoice tunggakan.
 - Tagihan langganan hanya menghitung hari layanan. Hari cuti dan hari putus tidak ditagih.
 - Penundaan isolir hanya lewat `isolir_ditunda_hingga`, dengan alasan `toleransi` atau `bypass`. Pembayaran satu bulan saat toleransi mengembalikan jadwal ke `hari_isolir`.

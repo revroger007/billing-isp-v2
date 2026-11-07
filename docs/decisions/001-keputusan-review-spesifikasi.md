@@ -8,7 +8,7 @@ Versi 0.3 cara kerja dan versi 1.2 logika isolir memakai tiga default isolir, sa
 
 - Pelanggan baru: `batas_tunggakan = 2`, `siklus_tagihan = tanggal_tetap`.
 - Isolir tidak punya empat mode dan tidak punya `isolir_enabled`. `batas_tunggakan` berisi `null`, `1`, atau `2`. `siklus_tagihan` berisi `tanggal_tetap` atau `prabayar`.
-- Scheduler hanya membaca `isolir_berikutnya`. Penundaan hanya lewat `isolir_ditunda_hingga`.
+- Scheduler hanya membaca `next_isolir`. Penundaan hanya lewat `isolir_ditunda_hingga`.
 - Isolir otomatis menunggu `tanggal_instalasi`. Biaya pasang adalah baris invoice, bukan tagihan kedua, dan tidak dihitung tunggakan.
 - Tunggakan langganan meliputi `belum_bayar`, `sebagian`, dan `menunggu_verifikasi`.
 - Uang disimpan sebagai integer rupiah. Harga paket sudah termasuk PPN. Prorata membagi harga dengan jumlah hari periode, lalu dibulatkan ke rupiah terdekat.
@@ -43,12 +43,13 @@ Versi 0.3 cara kerja dan versi 1.2 logika isolir memakai tiga default isolir, sa
 - Persetujuan perpanjangan satu bulan menulis `isolir_ditunda_hingga`. Label VIP tidak menunda isolir.
 - `hari_mulai_putus` menentukan catatan diskon isolir. Prorata dan komisi memakai pembagian integer. Komisi memakai `basis_poin`. Hutang mengendap bukan piutang.
 - `PELANGGAN` menyimpan `tanggal_daftar` dan `penundaan_catatan`. `status_langganan` terpisah dari `status_layanan`.
-- `LOG_API_MIKROTIK` menyimpan `status_api`, `jumlah_percobaan`, `jumlah_tunggakan`, dan salinan `isolir_berikutnya`.
+- `LOG_API_MIKROTIK` menyimpan `status_api`, `jumlah_percobaan`, `jumlah_tunggakan`, dan salinan `next_isolir`.
 - SNMP OLT adalah cadangan aktif bila `snmp_supported` benar. Callback gateway dan webhook pemantauan ditolak sebelum transaksi bila tanda atau sumber tidak sah.
 - Perubahan WiFi dan reboot modem menunggu NOC. Password ajuan terenkripsi dan tidak masuk teks audit. Google tidak membuat akun pelanggan. Admin wilayah hanya menyetujui pembayaran pada dusunnya bila memegang `koreksi_keuangan`.
 - Koreksi tagihan, kas, invoice, dan bukti transfer pelanggan hanya untuk Super Admin, Admin Global, `auditor_finansial` yang ditunjuk Super Admin, dan Admin Wilayah yang diberi izin oleh pusat.
 - Verifikasi bukti transfer bawaan `tidak_wajib`: tagihan langsung `lunas`, pembayaran bertanda `belum_diverifikasi`. Komisi reseller dan `N` menunggu `sudah_diverifikasi`. Mode `wajib`, `tanda_transfer` pada pelanggan, atau kolektor level 2 menahan tagihan di `menunggu_verifikasi`.
-- Tagihan `konversi` diperlakukan seperti biaya pemasangan: dapat ditagih, tidak dihitung `batas_tunggakan`, dan tidak menambah `N`. Isolir hanya menghitung tagihan `langganan` `periode_penuh` dengan `terbayar = 0`. Tagihan penuh yang sudah dibayar sebagian tidak dihitung isolir. Sisa pada tagihan di luar hitungan itu memberi tanda `tidak_tertib` dan rekomendasi siklus `prabayar`.
+- Satu pelanggan dapat memiliki banyak `ROUTER_PELANGGAN`. Login standar terlihat teknisi. Login superadmin hanya untuk izin `router_superadmin`.
+- `next_isolir` adalah tanggal yang dibaca scheduler. `status_langganan` setelah terpasang berisi `aktif`, `tunda_isolir`, atau `isolir`. `last_suspend` dan `last_active` menyimpan kejadian terakhir. Setiap suspend dan pembukaan menulis `RIWAYAT_SUSPEND`. `status_layanan` tetap status sinkronisasi router.
 - Hanya Super Admin dan `auditor_finansial` yang dapat menambah, mengedit, dan menghapus record saldo mengendap serta invoice. Hapus menghilangkan record. Bila record harus tetap ada, gunakan status `closed` atau edit. Hapus invoice ditolak bila `terbayar` masih ada, dan nomor yang sudah terbit tidak dipakai ulang. Status `closed` tidak mengurangi saldo mengendap dan tidak dapat dijadikan invoice.
 
-`docs/cara-kerja.md` versi 2.25 dan `docs/logika-isolir.md` versi 2.16 mengikuti keputusan ini. Perubahan berikutnya dicatat sebagai keputusan baru, bukan dengan menghidupkan kalimat lama.
+`docs/cara-kerja.md` versi 2.26 dan `docs/logika-isolir.md` versi 2.17 mengikuti keputusan ini. Perubahan berikutnya dicatat sebagai keputusan baru, bukan dengan menghidupkan kalimat lama.
