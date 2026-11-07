@@ -54,6 +54,7 @@ Versi 0.3 cara kerja dan versi 1.2 logika isolir memakai tiga default isolir, sa
 - `RIWAYAT_ISOLIR` mencatat periode hasil API, dibuat saat status menjadi `putus`. `RIWAYAT_SUSPEND` untuk isolir dibuat pada saat yang sama, satu baris, dan `selesai` diisi saat layanan kembali. Cuti tidak menulis `RIWAYAT_ISOLIR`.
 - Riwayat ping ada di Zabbix. Mikrotik tidak menjalankan netwatch atau skrip naik-turun. Trigger rumah bergantung pada induknya. Selama induk putus, billing menempelkan pelanggan ke satu agenda dan tidak membuka tiket per rumah.
 - Login perangkat, SSID, password WiFi, IP perangkat, dan gateway ada di `PERANGKAT_INVENTARIS`. Login superadmin hanya untuk izin `router_superadmin`.
+- Saldo dompet pelanggan adalah `saldo_akhir` baris terakhir `DOMPET_PELANGGAN_MUTASI`. Saldo poin adalah `saldo_akhir` baris terakhir `POIN_MUTASI`. Keduanya tidak disimpan di `PELANGGAN`. Belum ada baris berarti nol.
 - Hanya Super Admin dan `auditor_finansial` yang dapat menambah, mengedit, dan menghapus record saldo mengendap serta invoice. Hapus menghilangkan record. Bila record harus tetap ada, gunakan status `closed` atau edit. Hapus invoice ditolak bila `terbayar` masih ada, dan nomor yang sudah terbit tidak dipakai ulang. Status `closed` tidak mengurangi saldo mengendap dan tidak dapat dijadikan invoice.
 
-`docs/cara-kerja.md` versi 2.30 dan `docs/logika-isolir.md` versi 2.18 mengikuti keputusan ini. Perubahan berikutnya dicatat sebagai keputusan baru, bukan dengan menghidupkan kalimat lama.
+`docs/cara-kerja.md` versi 2.31 dan `docs/logika-isolir.md` versi 2.18 mengikuti keputusan ini. Perubahan berikutnya dicatat sebagai keputusan baru, bukan dengan menghidupkan kalimat lama.

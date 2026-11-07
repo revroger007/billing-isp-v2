@@ -1,6 +1,6 @@
 # 🌐 Rancangan Aplikasi Billing Internet — Microprovider / Mini ISP
 
-> Versi: 2.30 — Tahap 1: Definisi Fitur
+> Versi: 2.31 — Tahap 1: Definisi Fitur
 > Tanggal: 7 November 2026
 
 Keputusan yang mengunci uang, isolir, peran, dan batas tahap awal ada di `docs/decisions/001-keputusan-review-spesifikasi.md`. Jika kalimat di bawah berbeda dengan keputusan itu, keputusan yang dipakai.
@@ -472,8 +472,8 @@ Menghapus menghilangkan invoice dari tabel, bersama baris tagihannya. Nomor yang
 
 | Fitur | Keterangan |
 |---|---|
-| **Saldo Dompet** | Dompet digital internal dalam mata uang Rupiah (Rp). Saldo tidak kedaluwarsa & tidak boleh minus. |
-| **Fungsi Auto-Pay** | Default aktif. Saat tagihan terbit, pemotongan dompet dan pembayaran lain mengunci saldo. Dompet tidak boleh minus. Autopay yang gagal karena saldo kurang tidak mengubah tagihan. |
+| **Saldo Dompet** | Dompet digital internal dalam rupiah. Saldo tidak kedaluwarsa dan tidak boleh minus. Nilainya `saldo_akhir` baris terakhir `DOMPET_PELANGGAN_MUTASI` pelanggan itu. Belum ada baris berarti saldo 0. `PELANGGAN` tidak menyimpan saldo. |
+| **Fungsi Auto-Pay** | Default aktif. Saat tagihan terbit, pemotongan dompet mengunci baris mutasi pelanggan itu, membaca `saldo_akhir` terakhir, lalu menulis baris mutasi baru. Dompet tidak boleh minus. Autopay yang gagal karena saldo kurang tidak mengubah tagihan. |
 | **Top-up Saldo** | **Admin Global** dapat melakukan top-up langsung. Pelanggan (via portal), Admin Wilayah, dan Kolektor dapat melakukan **pengajuan/request top-up** yang wajib diverifikasi & disetujui Admin Global. Aturan ini dapat dikustomisasi Super Admin. |
 | **Kredit Kompensasi** | Saldo kompensasi gangguan koneksi diinput manual oleh Admin Global / diajukan Admin Wilayah dengan metode top-up kredit dompet. |
 
@@ -482,7 +482,7 @@ Menghapus menghilangkan invoice dari tabel, bersama baris tagihannya. Nomor yang
 ### 11. 🏅 Modul Sistem Poin & Referral Pelanggan
 
 > [!NOTE]
-> Sistem poin adalah mata uang loyalitas terpisah dari Dompet Rupiah untuk menjaga kebersihan akuntansi. **1 Poin = Rp 25.000**.
+> Sistem poin adalah mata uang loyalitas terpisah dari Dompet Rupiah untuk menjaga kebersihan akuntansi. **1 Poin = Rp 25.000**. Saldo poin adalah `saldo_akhir` baris terakhir `POIN_MUTASI` pelanggan itu. Belum ada baris berarti 0 poin. `PELANGGAN` tidak menyimpan saldo poin.
 
 | Fitur | Aturan & Mekanisme |
 |---|---|
@@ -1221,8 +1221,6 @@ erDiagram
         bigint reseller_id
         bigint referred_by_id
         string referral_code
-        bigint saldo_dompet
-        int saldo_poin
         bool auto_pay_enabled
         int batas_tunggakan "null, 1, atau 2"
         string siklus_tagihan
@@ -1330,6 +1328,7 @@ erDiagram
         string sumber
         bigint referensi_id
         string keterangan
+        datetime dibuat_pada
     }
 
     POIN_MUTASI {
@@ -1340,6 +1339,7 @@ erDiagram
         int saldo_akhir
         string sumber
         string keterangan
+        datetime dibuat_pada
     }
 
     REQUEST_APPROVAL {

@@ -2,6 +2,7 @@
 
 ## 2026-11-07
 
+- Saldo dompet diambil dari baris terakhir `DOMPET_PELANGGAN_MUTASI`. Saldo poin diambil dari baris terakhir `POIN_MUTASI`. `PELANGGAN` tidak menyimpan kedua saldo itu.
 - Tunggakan isolir hanya tagihan penuh yang `terbayar = 0`. Biaya pasang masuk hutang mengendap. `status_langganan` menjadi `isolir` saat router benar-benar `putus`. Cuti hanya lewat satu baris `RIWAYAT_SUSPEND`.
 - Data router pelanggan ada di `PERANGKAT_INVENTARIS`: SSID, password WiFi, IP perangkat, gateway, login standar, dan login superadmin. Tidak ada tabel `ROUTER_PELANGGAN`.
 - Riwayat ping ada di Zabbix. Alert rumah digabung ke agenda induk yang sedang putus.
