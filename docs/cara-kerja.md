@@ -169,7 +169,7 @@ Menyimpan tagihan dan pembayaran tetap lewat aksi bayar atau aktivasi yang terpi
 
 | Metode | Alur Verifikasi | Eksekusi Buka Isolir |
 |---|---|---|
-| **Cash (Kolektor)** | Langsung tercatat atas nama kolektor. Titik GPS disimpan sebagai catatan lokasi, bukan sebagai satu-satunya pengendali. Setiap simpan memakai `idempotency_key` supaya klik ganda tidak membuat dua pembayaran. | Isolir scheduler dibuka hanya bila syarat putus tidak terpenuhi. Isolir manual tidak terbuka karena pembayaran. |
+| **Cash (Kasir, Admin, Kolektor)** | Langsung tercatat atas nama user yang menerima uang. Nominal masuk ke periode kas orang itu. Titik GPS disimpan sebagai catatan lokasi, bukan sebagai satu-satunya pengendali. Setiap simpan memakai `idempotency_key` supaya klik ganda tidak membuat dua pembayaran. | Isolir scheduler dibuka hanya bila syarat putus tidak terpenuhi. Isolir manual tidak terbuka karena pembayaran. |
 | **Transfer Manual (Pelanggan)** | Pelanggan mengunggah bukti. Status tagihan menjadi `menunggu_verifikasi` dan tetap dihitung tunggakan. | Setelah Admin Global atau Admin Wilayah menyetujui dan syarat putus tidak terpenuhi. |
 | **Transfer Manual (Admin)** | Admin Global atau Admin Wilayah mengunggah bukti. Tagihan langsung `lunas`. | Syarat putus dihitung ulang. Putus manual tidak ikut terbuka. |
 | **Transfer Manual (Kolektor)** | Mengikuti level wewenang kolektor. Bukti wajib. | Sama dengan level kolektor, dan tetap menunggu syarat putus. |
@@ -265,9 +265,61 @@ flowchart TD
 | **Buku Kas Gantung** | Saldo uang tunai fisik yang sedang dipegang kolektor (bertambah setiap terima cash) |
 | **Input Pembayaran** | Sesuai level wewenang (Cash only, Cash+Transfer pending, Cash+Transfer auto). **Wajib menangkap koordinat GPS realtime** perangkat saat transaksi dicatat. |
 | **Peta Penagihan (Tracking)** | Admin dapat melihat titik lokasi penagihan kolektor di peta (Google Maps/OpenStreetMap) untuk memvalidasi apakah kolektor benar-benar menagih di rumah pelanggan atau di tempat lain. |
-| **Pengajuan Setoran** | Kolektor input nominal uang yang disetor ke admin fisik/rekening penampung |
-| **Verifikasi Setoran** | Admin memvalidasi setoran. Saldo kas gantung berkurang sebesar nominal yang diterima. Selisih tetap menjadi saldo dan muncul di laporan. Setoran tidak boleh membuat saldo minus. |
-| **Laporan Kolektor** | Tagihan tertagih vs kas gantung vs riwayat setoran |
+| **Pengajuan Setoran** | Penerima memilih periode yang masih bersisa, lalu mengajukan nominal ke kasir atau ke bank. |
+| **Verifikasi Setoran** | User lain menghitung uang dan mengonfirmasi. Sisa berkurang sebesar nominal yang diterima. Sisa menjadi 0 hanya bila setoran yang dikonfirmasi sama dengan sisa. Selisih tetap tampil. Setoran tidak boleh membuat sisa minus. Penerima tidak mengonfirmasi setorannya sendiri. |
+| **Laporan Kolektor** | Tagihan tertagih vs sisa di tangan vs riwayat setoran |
+
+#### Ringkasan dana di tangan
+
+Uang tunai yang diterima kasir, admin, atau kolektor rawan selisih: tagihan bisa sudah lunas di sistem sementara uang fisik belum masuk rekening. Transfer bank, dompet pelanggan, payment gateway, dan komisi reseller tidak masuk saldo ini.
+
+Setiap penerima punya satu baris periode kas per tanggal Asia/Jakarta. Penerimaan baru pada hari yang sama menambah baris itu. Hari berikutnya membuka baris baru. Sisa hari yang belum disetor tetap pada baris lama.
+
+| Kolom | Arti |
+|---|---|
+| Penerima | User yang memegang uang |
+| Peran saat terima | `kasir`, `admin`, atau `kolektor` |
+| Periode | Tanggal kalender Asia/Jakarta |
+| Total dari pelanggan | Uang tunai pelanggan yang dicatat pada periode itu |
+| Total dari setoran | Uang yang diterima dari penerima lain |
+| Total disetor | Uang yang sudah dikonfirmasi keluar dari penerima |
+| Sisa di tangan | Total masuk dikurangi total disetor |
+| Status | `di_tangan`, `sebagian`, atau `disetor` |
+| Disetor pada | Waktu konfirmasi yang membuat sisa menjadi 0. Kosong selama sisa masih ada |
+| Diterima oleh | User lain yang menghitung uang |
+
+Sisa menjadi 0 hanya saat konfirmasi menutup seluruh sisa. Status lalu `disetor`. Total dari pelanggan pada baris itu tetap tersimpan sebagai riwayat. Setoran sebagian membuat status `sebagian` dan sisa tidak diubah menjadi 0.
+
+Contoh kolektor Budi, 7 November 2026. Ia menerima Rp150.000, Rp150.000, dan Rp80.000.
+
+```
+Total dari pelanggan   Rp380.000
+Sisa di tangan         Rp380.000
+Status                 di_tangan
+```
+
+Pukul 16:40 kasir Ani menghitung dan mengonfirmasi Rp380.000.
+
+```
+Budi, 7 November
+  Total dari pelanggan   Rp380.000
+  Total disetor          Rp380.000
+  Sisa di tangan         Rp0
+  Status                 disetor
+  Disetor pada           7 November 2026, 16:40 WIB
+  Diterima oleh          Ani
+
+Ani, 7 November
+  Total dari setoran     Rp380.000
+  Sisa di tangan         Rp380.000
+  Status                 di_tangan
+```
+
+Bila Budi hanya menyetor Rp300.000, sisa Budi tetap Rp80.000 dan statusnya `sebagian`.
+
+Setoran kolektor ke kasir memindahkan sisa. Uang perusahaan tidak dihitung dua kali. Ringkasan yang belum masuk bank adalah jumlah `sisa di tangan` seluruh penerima. Setoran kasir ke bank menurunkan sisa kasir tanpa menambah saldo penerima lain. User yang sama tidak boleh mengonfirmasi kedua sisi.
+
+Penerimaan tunai, pembatalan, dan konfirmasi setoran memakai satu transaksi dengan `lockForUpdate` pada periode yang diubah. Pembatalan pembayaran pada periode yang masih terbuka menulis mutasi balik. Periode yang sudah `disetor` tidak diubah. Pembatalan sesudah itu membuka mutasi balik pada periode terbuka penerima yang sama. Setiap penerima punya batas saldo di tangan. Penerimaan baru ditolak bila sisa ditambah nominal itu melewati batas.
 
 ---
 
@@ -1231,13 +1283,40 @@ erDiagram
         string area
     }
 
-    SETORAN {
-        int id
-        int kolektor_id
-        date tanggal
+    PERIODE_KAS {
+        bigint id
+        bigint user_id
+        date periode
+        bigint total_dari_pelanggan
+        bigint total_dari_setoran
+        bigint total_disetor
+        bigint sisa_di_tangan
+        string status
+        datetime disetor_pada
+        bigint diterima_oleh
+    }
+
+    MUTASI_KAS {
+        bigint id
+        bigint periode_kas_id
+        bigint pembayaran_id
+        bigint setoran_id
+        string arah
         bigint nominal
-        string status_verifikasi
-        int admin_id
+        bigint saldo_akhir
+        datetime dibuat_pada
+    }
+
+    SETORAN {
+        bigint id
+        bigint periode_kas_id
+        bigint user_id
+        bigint nominal
+        string tujuan
+        string status
+        bigint diterima_oleh
+        datetime diajukan_pada
+        datetime dikonfirmasi_pada
     }
 
     RIWAYAT_ISOLIR {
@@ -1429,7 +1508,9 @@ erDiagram
     PELANGGAN ||--o{ TAGIHAN : "punya"
     TAGIHAN ||--o{ TRANSAKSI_PEMBAYARAN : "memiliki riwayat bayar"
     TRANSAKSI_PEMBAYARAN }o--o| KOLEKTOR : "diterima oleh"
-    KOLEKTOR ||--o{ SETORAN : "menyetor"
+    USERS ||--o{ PERIODE_KAS : "memegang uang tunai"
+    PERIODE_KAS ||--o{ MUTASI_KAS : "mencatat mutasi"
+    PERIODE_KAS ||--o{ SETORAN : "disetor lewat"
     PELANGGAN ||--o{ RIWAYAT_ISOLIR : "punya periode putus"
     PELANGGAN ||--o{ LOG_API_MIKROTIK : "tercatat"
     MIKROTIK ||--o{ LOG_API_MIKROTIK : "dicatat dari"

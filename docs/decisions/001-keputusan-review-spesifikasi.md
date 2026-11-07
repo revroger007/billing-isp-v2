@@ -33,6 +33,7 @@ Versi 0.3 cara kerja dan versi 1.2 logika isolir memakai tiga default isolir, sa
 - Perintah yang gagal karena Mikrotik mati dicoba 10 kali, jeda 5 menit. Setelah batas itu, satu percobaan ulang dijalankan 5 menit setelah router terpantau nyala, hanya untuk baris yang gagal.
 - Menyalakan layanan membatalkan baris putus yang belum dijalankan. `hari_isolir` yang melewati akhir bulan menjadi hari terakhir bulan itu. Entri address-list tidak punya timeout.
 - `status_layanan` memakai `tidak_serempak` untuk router yang tidak selesai bersama. `sebagian` tetap status pembayaran.
+- Uang tunai kasir, admin, dan kolektor masuk periode kas per tanggal Asia/Jakarta. Sisa menjadi 0 hanya bila user lain mengonfirmasi setoran sebesar sisa. Total periode tetap tersimpan. Transfer, dompet, gateway, dan komisi reseller tidak masuk saldo di tangan.
 
 ## Konsekuensi
 

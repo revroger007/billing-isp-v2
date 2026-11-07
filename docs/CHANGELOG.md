@@ -19,6 +19,7 @@ Spesifikasi diselaraskan dengan review rancangan.
 - Bulan yang terisolir penuh tidak diterbitkan, sehingga tidak ada kuitansi bulan itu. Aktivasi di tengah bulan berikutnya menerbitkan prorata seperti pasang baru.
 - Admin punya tombol simulasi biaya aktivasi dan tunggakan. Hasilnya pratinjau, tidak menulis tagihan atau isolir.
 - Uang, PPN, prorata, baris tagihan, dan jurnal balik dikunci sebagai integer rupiah.
+- Kasir, admin, dan kolektor punya periode kas harian. Sisa di tangan menjadi 0 hanya setelah setoran utuh dikonfirmasi user lain. Riwayat total tetap tersimpan.
 - Peran Admin Pusat disatukan ke Admin Global. WhatsApp pelanggan hanya lewat tombol. Failover database dikeluarkan dari modul aplikasi.
 
 Belum dikerjakan: kode aplikasi. Tahap berikut adalah proyek Laravel, migrasi, serta autentikasi tujuh peran.
