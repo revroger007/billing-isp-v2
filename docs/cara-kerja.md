@@ -1,6 +1,6 @@
 # 🌐 Rancangan Aplikasi Billing Internet — Microprovider / Mini ISP
 
-> Versi: 2.32 — Tahap 1: Definisi Fitur
+> Versi: 2.33 — Tahap 1: Definisi Fitur
 > Tanggal: 7 November 2026
 
 Keputusan yang mengunci uang, isolir, peran, dan batas tahap awal ada di `docs/decisions/001-keputusan-review-spesifikasi.md`. Jika kalimat di bawah berbeda dengan keputusan itu, keputusan yang dipakai.
@@ -64,7 +64,7 @@ flowchart TD
 | **Topologi Sumber Sambungan Fleksibel** | **Mengakomodasi Realita Lapangan RT/RW Net:** Pelanggan tidak dipaksa harus selalu dari tiang ODP resmi. Disediakan 4 pilihan sumber koneksi:<br>1. **ODP Tiang (Standar Fiber):** Tersambung ke tiang ODP resmi (pilih ODP dan Nomor Port).<br>2. **Splitter Rumah Tetangga (Sub-Splitter / Numpang):** Mengambil sinyal optik dari splitter kecil (misal ratio 1:2 atau 1:4) yang dititipkan di rumah tetangga terdekat (pilih nama tetangga *parent* & catatan posisi box di teras/atap).<br>3. **Estafet HTB / Switch LAN:** Pelanggan dicolok kabel LAN UTP dari media converter HTB / Switch Hub yang dititipkan di rumah warga atau tiang gang (pilih nama warga sumber HTB & port switch).<br>4. **Koneksi Langsung:** Ditarik langsung dari switch/router kantor pusat. |
 | **Peta Pohon Dependensi (*Parent-Child Tree*)** | **Kunci Diagnosa Gangguan:** Jika 3 rumah estafet HTB mati bersamaan, sistem langsung menandai bahwa sumber masalahnya berasal dari **titik rumah induk (parent)** yang mati lampu atau adaptor HTB-nya tercabut, bukan kabel jalanan yang putus! |
 | **Login Portal Pelanggan** | Username, email, nomor HP, dan nomor pelanggan. Google hanya menaut ke akun yang emailnya sudah sama dan tidak membuat akun pelanggan baru. |
-| **Data router pelanggan** | Satu pelanggan dapat memiliki lebih dari satu perangkat. Semuanya baris `PERANGKAT_INVENTARIS` dengan `pelanggan_id` terisi: SSID, password WiFi, IP perangkat, gateway, `tipe_merk`, `username_koneksi`, `password_koneksi`, `foto_instalasi`, dan `file_backup_config`. Login standar adalah `username_biasa` dan `password_biasa`, tampil untuk teknisi. Login superadmin hanya tampil untuk pemegang izin `router_superadmin`. Super Admin dan NOC memegang izin itu. Semua password terenkripsi. IP untuk address-list isolir tetap di `pelanggan_mikrotik`, bukan di baris perangkat. |
+| **Data router pelanggan** | Satu pelanggan dapat memiliki lebih dari satu perangkat. Semuanya baris `PERANGKAT_INVENTARIS` dengan `pelanggan_id` terisi: SSID, password WiFi, IP perangkat, gateway, `tipe_merk`, `onu_id`, `onu_sn`, `username_koneksi`, `password_koneksi`, `foto_instalasi`, dan `file_backup_config`. `serial_number` tetap nomor stok. `onu_sn` adalah serial GPON. Login standar adalah `username_biasa` dan `password_biasa`, tampil untuk teknisi. Login superadmin hanya tampil untuk pemegang izin `router_superadmin`. Super Admin dan NOC memegang izin itu. Semua password terenkripsi. IP untuk address-list isolir tetap di `pelanggan_mikrotik`, bukan di baris perangkat. |
 | **Login web perangkat WiFi** | Login standar dan superadmin ada pada `PERANGKAT_INVENTARIS`. Teknisi melihat `username_biasa` dan `password_biasa`. Pemegang `router_superadmin` melihat login superadmin. Teknisi tidak menerima kolom superadmin lewat API. |
 | **Akses Teknisi Saat Perbaikan & Tombol WA** | **Kemudahan Teknisi di Lapangan:**<br>Saat menerima tiket servis/perbaikan, teknisi dapat langsung membuka tab data teknis (melihat SSID, password WiFi, merk alat, tanggal pasang, dan mengunduh file backup config).<br>• **Tombol `[📲 Hubungi Pelanggan via WA]`:** Satu sentuhan di HP teknisi langsung membuka chat WhatsApp ke pelanggan bersangkutan untuk konfirmasi janji temu atau laporan kedatangan. |
 | **Alur Request Penggantian SSID & Password WiFi** | **Prosedur Terverifikasi Anti-Salah Setting:**<br>1. **Pengajuan:** Admin Wilayah atau Teknisi di lapangan membuka form *Request Ubah WiFi* $\rightarrow$ input SSID Baru & Password Baru $\rightarrow$ status `menunggu_verifikasi_noc`.<br>2. **Validasi & Eksekusi NOC:** NOC memvalidasi permintaan, lalu mengeksekusi via API TR-069 GenieACS (atau konfigurasi manual).<br>3. **Pembaruan Otomatis:** Begitu NOC menekan **`[Verifikasi & Simpan]`**, SSID dan password baru tersimpan terenkripsi pada baris `PERANGKAT_INVENTARIS` yang dipilih. Audit mencatat bahwa password berubah, tanpa menyimpan nilainya. Portal pelanggan tidak mengubah WiFi dan tidak me-reboot modem. |
@@ -778,7 +778,7 @@ Selain ACS TR-069, aplikasi billing menyediakan jalur diagnosa langsung ke peran
 
 * **Data OLT yang Dikelola di Billing:**
   * Form Master OLT: `nama_olt`, `ip_address`, `snmp_supported` (boolean Ya/Tidak), `snmp_community` (read-only), `snmp_port` (161), `tipe_merk_olt`.
-  * Form Penugasan di Pelanggan: `olt_id`, `pon_port` (contoh: `1/1/2`), `onu_id` (contoh: `12`), atau Serial Number (`onu_sn`).
+  * Form Penugasan di Pelanggan: `olt_id` dan `pon_port` (contoh: `1/1/2`). `onu_id` dan `onu_sn` diisi pada baris `PERANGKAT_INVENTARIS` perangkat itu.
 
 ##### 5. Kebijakan Prioritas Pengecekan Redaman (ACS Default, SNMP OLT Cadangan Aktif)
 ACS (GenieACS / TR-069) adalah jalur utama. SNMP OLT adalah cadangan yang langsung dipakai bila ACS gagal atau pelanggan tidak terhubung ke ACS, dan hanya bila `snmp_supported = true` pada OLT itu.
@@ -1212,8 +1212,6 @@ erDiagram
         string catatan_sumber_koneksi
         bigint olt_id
         string pon_port
-        int onu_id
-        string onu_sn
         string no_hp
         string email
         string no_pelanggan
@@ -1250,6 +1248,8 @@ erDiagram
         bigint id
         string serial_number
         string mac_address
+        int onu_id
+        string onu_sn
         string tipe_merk
         string jenis_perangkat
         string ssid

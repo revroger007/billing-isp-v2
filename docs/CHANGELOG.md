@@ -2,7 +2,8 @@
 
 ## 2026-11-07
 
-- `username_koneksi`, `password_koneksi`, `foto_instalasi`, dan `file_backup_config` ada di `PERANGKAT_INVENTARIS`. Merk memakai `tipe_merk` yang sudah ada. `PELANGGAN` tidak menyimpan kolom itu.
+- `onu_id` dan `onu_sn` ada di `PERANGKAT_INVENTARIS`. `olt_id` dan `pon_port` tetap di `PELANGGAN`. `serial_number` tetap nomor stok.
+- `username_koneksi`, `password_koneksi`, `foto_instalasi`, dan `file_backup_config` ada di `PERANGKAT_INVENTARIS`. Merk memakai `tipe_merk` yang sudah ada.
 - Saldo dompet diambil dari baris terakhir `DOMPET_PELANGGAN_MUTASI`. Saldo poin diambil dari baris terakhir `POIN_MUTASI`. `PELANGGAN` tidak menyimpan kedua saldo itu.
 - Tunggakan isolir hanya tagihan penuh yang `terbayar = 0`. Biaya pasang masuk hutang mengendap. `status_langganan` menjadi `isolir` saat router benar-benar `putus`. Cuti hanya lewat satu baris `RIWAYAT_SUSPEND`.
 - Data router pelanggan ada di `PERANGKAT_INVENTARIS`: SSID, password WiFi, IP perangkat, gateway, login standar, dan login superadmin. Tidak ada tabel `ROUTER_PELANGGAN`.
