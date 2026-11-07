@@ -1,6 +1,6 @@
 # 🌐 Rancangan Aplikasi Billing Internet — Microprovider / Mini ISP
 
-> Versi: 2.21 — Tahap 1: Definisi Fitur
+> Versi: 2.22 — Tahap 1: Definisi Fitur
 > Tanggal: 7 November 2026
 
 Keputusan yang mengunci uang, isolir, peran, dan batas tahap awal ada di `docs/decisions/001-keputusan-review-spesifikasi.md`. Jika kalimat di bawah berbeda dengan keputusan itu, keputusan yang dipakai.
@@ -423,11 +423,21 @@ Verifikasi dan koreksi buku tagihan, kas, invoice, dan bukti transfer pelanggan 
 | Aksi | Yang ditulis |
 |---|---|
 | Setujui atau tolak bukti transfer | Tanda pembayaran menjadi `sudah_diverifikasi` atau `ditolak`. Tolak pada tagihan yang sudah lunas menulis pembayaran balik. |
-| Koreksi invoice | Nominal, status, atau jatuh tempo berubah dengan nilai sebelum dan sesudah. `sisa` dihitung ulang dari `nominal - terbayar`. |
+| Koreksi invoice | Hanya Super Admin dan `auditor_finansial`. Lihat bagian invoice manual. |
 | Koreksi pembayaran | Pembatalan memakai `reverses_id` pada `PEMBAYARAN` baru. Baris lama tidak dihapus. |
 | Koreksi kas | Baris `MUTASI_KAS` baru berjenis `koreksi` pada periode yang masih terbuka. `saldo_akhir` baris lama tidak ditulis ulang. |
 
 Admin Wilayah yang memegang izin hanya membuka pelanggan pada dusun di `user_wilayah`. Kolektor level 3 tetap dapat mencatat transfernya sendiri tanpa antrean. Bukti yang diunggah pelanggan tetap menunggu pemegang `koreksi_keuangan`. Setiap aksi memakai `lockForUpdate` dan menolak bila pelakunya tidak memegang izin.
+
+#### Invoice manual
+
+Hanya Super Admin dan `auditor_finansial` yang dapat menambah, mengedit, dan menghapus invoice secara manual. Alasan wajib. Audit menyimpan nilai sebelum dan sesudah.
+
+Menambah invoice membuat `TAGIHAN` baru dengan nomor dari sequence. `terbayar` mulai dari 0 dan `sisa` sama dengan `nominal`. Periode penuh memakai tipe `langganan` dan tetap mematuhi kunci unik `(pelanggan_id, tipe_tagihan, layanan_mulai)`. Biaya di luar periode memakai tipe `manual`.
+
+Mengedit dapat mengubah nominal, jatuh tempo, keterangan, dan status. `sisa` dihitung ulang dari `nominal - terbayar`. Edit ditolak bila nominal baru lebih kecil dari `terbayar`. `terbayar` tidak diubah lewat edit. Perubahan uang yang sudah masuk memakai pembayaran balik.
+
+Menghapus tidak menghilangkan invoice dan tidak memakai ulang nomornya. Status menjadi `batal`. Hapus ditolak bila `terbayar` masih lebih dari 0. Invoice `batal` tidak dihitung tunggakan.
 
 ---
 
