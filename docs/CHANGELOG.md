@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-11-07 (keputusan 004)
+
+- Identifier tabel, kolom, nilai status, action, dan izin di `cara-kerja.md` (2.41) dan `logika-isolir.md` (3.1) berbahasa Inggris. Padanan nama lama ada di `docs/glossary.md`. Keputusan 001–003 dan entri changelog lama tetap memakai nama lama.
+- `is_irregular_payer` dipasang manual oleh Admin Global, Admin Wilayah, collector, atau `finance_auditor`, dengan catatan wajib. Tidak ada tanda otomatis.
+- Invoice yang sudah menerima uang, `paid`, `pending_verification`, atau `cancelled` terkunci. Invoice yang belum dibayar boleh diubah nominalnya oleh Super Admin dan `finance_auditor`, dan jatuh temponya oleh Super Admin dan Admin Global. Status tidak diedit langsung.
+- Collector mengajukan toleransi sementara lewat `deferral_requests`. Admin Global menyetujui.
+- Harga paket dapat berbeda per desa atau dusun lewat `package_area_prices`. Kecepatan paket hanya catatan.
+- `deferred_balances` tidak menyimpan saldo. Saldo dihitung dari jumlah baris saat dibutuhkan. Super Admin, Admin Global, dan `finance_auditor` dapat menambah, mengedit, dan menghapus record.
+
+Masih TODO: konfirmasi asumsi di keputusan 003 dan 004, pilihan PostgreSQL atau MySQL, rekonsiliasi router (ditunda), dan sisa temuan review awal yang belum diputuskan.
+
 ## 2026-11-07 (keputusan 003)
 
 - `next_isolir` menjadi hasil hitung `hitung_isolir_berikutnya`. Data masukannya `paid_through` (`prabayar`), `isolir_berlaku_mulai` dan tagihan (`tanggal_tetap`), dan tabel baru `JENDELA_PENUNDAAN`. `hari_isolir` dihapus.
