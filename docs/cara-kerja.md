@@ -1763,7 +1763,7 @@ Aplikasi tidak mempromosikan database, tidak mengklon data dari browser, dan tid
 | Tahap | Fokus | Status |
 |---|---|---|
 | **Tahap 1** | Definisi fitur & rancangan sistem | ✅ Selesai |
-| **Tahap 2** | Setup project Laravel, migrasi, autentikasi delapan peran, termasuk `auditor_finansial`,, dan tabel `user_wilayah` | Berikutnya |
+| **Tahap 2** | Setup project Laravel, migrasi, autentikasi delapan peran, termasuk `auditor_finansial`, dan tabel `user_wilayah` | Berikutnya |
 | **Tahap 3** | CRUD Pelanggan, Mikrotik (many-to-many), Paket |  |
 | **Tahap 4** | Modul Tagihan & Generate Bulanan |  |
 | **Tahap 5** | Modul Pembayaran (Cash + Transfer) |  |
