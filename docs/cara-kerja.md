@@ -1,6 +1,6 @@
 # 🌐 Rancangan Aplikasi Billing Internet — Microprovider / Mini ISP
 
-> Versi: 2.22 — Tahap 1: Definisi Fitur
+> Versi: 2.23 — Tahap 1: Definisi Fitur
 > Tanggal: 7 November 2026
 
 Keputusan yang mengunci uang, isolir, peran, dan batas tahap awal ada di `docs/decisions/001-keputusan-review-spesifikasi.md`. Jika kalimat di bawah berbeda dengan keputusan itu, keputusan yang dipakai.
@@ -143,7 +143,7 @@ Menambah record menulis baris `masuk` dan menaikkan `saldo_akhir`.
 
 Mengedit mengubah nominal, jenis, tanggal, atau keterangan pada record yang ada. Audit menyimpan nilai sebelum dan sesudah. `saldo_akhir` record itu dan semua record sesudahnya untuk pelanggan yang sama dihitung ulang dalam transaksi yang sama. Baris lain tidak dihapus.
 
-Menghapus tidak menghilangkan record. Statusnya menjadi `dihapus` dan satu baris `keluar` mengurangi `saldo_akhir`. Baris `dihapus` dan `closed` tidak dapat dijadikan invoice.
+Menghapus menghilangkan record dari tabel. Audit menyimpan salinan nilai record itu sebelum hilang. `saldo_akhir` semua record sesudahnya untuk pelanggan yang sama dihitung ulang. Hapus ditolak bila record itu sudah menjadi sumber tagihan `konversi` yang belum `batal`. Bila record harus tetap ada, gunakan status `closed` atau edit, bukan hapus.
 
 Membuat invoice hanya dari baris berstatus `mengendap`. Sistem menambah baris `keluar` sebesar nominal sumber. Catatan sumber tetap ada. `saldo_akhir` berkurang. Sistem membuat `TAGIHAN` bertipe `konversi`, status `belum_bayar`, dan nominal yang sama. Tagihan itu dihitung tunggakan dan dapat ditagih.
 
@@ -437,7 +437,7 @@ Menambah invoice membuat `TAGIHAN` baru dengan nomor dari sequence. `terbayar` m
 
 Mengedit dapat mengubah nominal, jatuh tempo, keterangan, dan status. `sisa` dihitung ulang dari `nominal - terbayar`. Edit ditolak bila nominal baru lebih kecil dari `terbayar`. `terbayar` tidak diubah lewat edit. Perubahan uang yang sudah masuk memakai pembayaran balik.
 
-Menghapus tidak menghilangkan invoice dan tidak memakai ulang nomornya. Status menjadi `batal`. Hapus ditolak bila `terbayar` masih lebih dari 0. Invoice `batal` tidak dihitung tunggakan.
+Menghapus menghilangkan invoice dari tabel, bersama baris tagihannya. Nomor yang sudah terbit tidak dipakai ulang. Hapus ditolak bila `terbayar` masih lebih dari 0. Bila invoice harus tetap tercatat, gunakan edit, bukan hapus.
 
 ---
 
@@ -1398,8 +1398,6 @@ erDiagram
         bigint dibuat_oleh
         bigint diedit_oleh
         datetime diedit_pada
-        bigint dihapus_oleh
-        datetime dihapus_pada
         text alasan
         bigint tagihan_id
         bigint sumber_id
