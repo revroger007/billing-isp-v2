@@ -8,7 +8,7 @@ Versi 0.3 cara kerja dan versi 1.2 logika isolir memakai tiga default isolir, sa
 
 - Pelanggan baru: `batas_tunggakan = 2`, `siklus_tagihan = tanggal_tetap`.
 - Isolir tidak punya empat mode dan tidak punya `isolir_enabled`. `batas_tunggakan` berisi `null`, `1`, atau `2`. `siklus_tagihan` berisi `tanggal_tetap` atau `prabayar`.
-- Scheduler hanya membaca `next_isolir`. Penundaan hanya lewat `isolir_ditunda_hingga`.
+- Scheduler hanya membaca `next_isolir`. Penundaan mengisi tanggal itu. `alasan` dan `disetujui_oleh` ada di `RIWAYAT_ISOLIR`.
 - Isolir otomatis menunggu `tanggal_instalasi`. Biaya pasang dicatat sebagai hutang mengendap, bukan baris invoice, dan tidak dihitung tunggakan.
 - Tunggakan isolir hanya tagihan `langganan` `periode_penuh` yang `terbayar = 0` dan statusnya `belum_bayar` atau `menunggu_verifikasi`. Status `sebagian` tidak dihitung.
 - Uang disimpan sebagai integer rupiah. Harga paket sudah termasuk PPN. Prorata membagi harga dengan jumlah hari periode, lalu dibulatkan ke rupiah terdekat.
@@ -18,10 +18,10 @@ Versi 0.3 cara kerja dan versi 1.2 logika isolir memakai tiga default isolir, sa
 - GPS dan cetak thermal dari browser hanya saat halaman terbuka. iOS mencetak PDF.
 - Bonus teknisi tidak timbul dari tiket yang tertutup karena agenda massal.
 - Failover server, replikasi database, dan restore SQL adalah prosedur infrastruktur, bukan modul aplikasi.
-- Impor pelanggan lama memakai `isolir_mulai_evaluasi`. Mutasi uang yang dibatalkan menulis jurnal balik.
+- Impor pelanggan lama mengisi `next_isolir`. Mutasi uang yang dibatalkan menulis jurnal balik.
 - Cuti tidak menagih tanggal cuti dan tidak membatalkan invoice. Prorata, diskon, biaya aktivasi, dan prorata aktivasi prabayar dicatat sebagai hutang mengendap, bukan invoice dan bukan piutang. Memindahkan invoice menjadi saldo mengendap hanya manual oleh Super Admin atau `auditor_finansial`.
 - Tagihan langganan hanya menghitung hari layanan. Hari cuti dan hari `putus` tidak ditagih, sehingga bulan kosong tidak punya kuitansi.
-- `isolir_ditunda_hingga` menggantikan `isolir_sementara` dan `bypass_until`. Alasan berisi `toleransi` atau `bypass`. Pembayaran satu bulan saat toleransi mengembalikan jadwal ke `hari_isolir` pada semua siklus.
+- Penundaan mengisi `next_isolir`. `alasan` pada `RIWAYAT_ISOLIR` berisi `toleransi` atau `bypass`. `disetujui_oleh` wajib untuk `bypass`. Pembayaran satu bulan saat toleransi mengembalikan jadwal ke `hari_isolir` pada semua siklus.
 - Satu tagihan langganan yang sudah lewat jatuh tempo memutus pelanggan dengan `batas_tunggakan = 1`, termasuk tagihan bulan lain.
 - Bulan tanpa hari layanan tidak punya tagihan dan tidak punya kuitansi. Aktivasi di tengah periode menambah hutang mengendap, bukan tagihan. Tidak adanya tagihan tidak membuka isolir.
 - Tombol simulasi admin menjumlahkan sisa tunggakan dan prorata aktivasi tanpa menyimpan apa pun.
@@ -40,9 +40,9 @@ Versi 0.3 cara kerja dan versi 1.2 logika isolir memakai tiga default isolir, sa
 
 - Satu `PEMBAYARAN` memiliki banyak `ALOKASI_PEMBAYARAN`. `idempotency_key` unik per penerimaan.
 - `tidak_serempak` menyalakan layanan bila syarat putus gugur dan sumber putus bukan manual.
-- Persetujuan perpanjangan satu bulan menulis `isolir_ditunda_hingga`. Label VIP tidak menunda isolir.
+- Persetujuan perpanjangan satu bulan menulis `next_isolir`. Label VIP tidak menunda isolir.
 - `hari_mulai_putus` menentukan catatan diskon isolir. Prorata dan komisi memakai pembagian integer. Komisi memakai `basis_poin`. Hutang mengendap bukan piutang.
-- `PELANGGAN` menyimpan `tanggal_daftar` dan `penundaan_catatan`. `status_langganan` terpisah dari `status_layanan`.
+- `PELANGGAN` menyimpan `tanggal_daftar`. `status_langganan` terpisah dari `status_layanan`. `acs_device_id` ada di `PERANGKAT_INVENTARIS`.
 - `LOG_API_MIKROTIK` menyimpan `status_api`, `jumlah_percobaan`, `jumlah_tunggakan`, dan salinan `next_isolir`.
 - SNMP OLT adalah cadangan aktif bila `snmp_supported` benar. Callback gateway dan webhook pemantauan ditolak sebelum transaksi bila tanda atau sumber tidak sah.
 - Perubahan WiFi dan reboot modem menunggu NOC. Password ajuan terenkripsi dan tidak masuk teks audit. Google tidak membuat akun pelanggan. Admin wilayah hanya menyetujui pembayaran pada dusunnya bila memegang `koreksi_keuangan`.
@@ -57,4 +57,4 @@ Versi 0.3 cara kerja dan versi 1.2 logika isolir memakai tiga default isolir, sa
 - Saldo dompet pelanggan adalah `saldo_akhir` baris terakhir `DOMPET_PELANGGAN_MUTASI`. Saldo poin adalah `saldo_akhir` baris terakhir `POIN_MUTASI`. Keduanya tidak disimpan di `PELANGGAN`. Belum ada baris berarti nol.
 - Hanya Super Admin dan `auditor_finansial` yang dapat menambah, mengedit, dan menghapus record saldo mengendap serta invoice. Hapus menghilangkan record. Bila record harus tetap ada, gunakan status `closed` atau edit. Hapus invoice ditolak bila `terbayar` masih ada, dan nomor yang sudah terbit tidak dipakai ulang. Status `closed` tidak mengurangi saldo mengendap dan tidak dapat dijadikan invoice.
 
-`docs/cara-kerja.md` versi 2.33 dan `docs/logika-isolir.md` versi 2.18 mengikuti keputusan ini. Perubahan berikutnya dicatat sebagai keputusan baru, bukan dengan menghidupkan kalimat lama.
+`docs/cara-kerja.md` versi 2.34 dan `docs/logika-isolir.md` versi 2.19 mengikuti keputusan ini. Perubahan berikutnya dicatat sebagai keputusan baru, bukan dengan menghidupkan kalimat lama.

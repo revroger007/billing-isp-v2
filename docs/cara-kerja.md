@@ -1,6 +1,6 @@
 # 🌐 Rancangan Aplikasi Billing Internet — Microprovider / Mini ISP
 
-> Versi: 2.33 — Tahap 1: Definisi Fitur
+> Versi: 2.34 — Tahap 1: Definisi Fitur
 > Tanggal: 7 November 2026
 
 Keputusan yang mengunci uang, isolir, peran, dan batas tahap awal ada di `docs/decisions/001-keputusan-review-spesifikasi.md`. Jika kalimat di bawah berbeda dengan keputusan itu, keputusan yang dipakai.
@@ -68,7 +68,8 @@ flowchart TD
 | **Login web perangkat WiFi** | Login standar dan superadmin ada pada `PERANGKAT_INVENTARIS`. Teknisi melihat `username_biasa` dan `password_biasa`. Pemegang `router_superadmin` melihat login superadmin. Teknisi tidak menerima kolom superadmin lewat API. |
 | **Akses Teknisi Saat Perbaikan & Tombol WA** | **Kemudahan Teknisi di Lapangan:**<br>Saat menerima tiket servis/perbaikan, teknisi dapat langsung membuka tab data teknis (melihat SSID, password WiFi, merk alat, tanggal pasang, dan mengunduh file backup config).<br>• **Tombol `[📲 Hubungi Pelanggan via WA]`:** Satu sentuhan di HP teknisi langsung membuka chat WhatsApp ke pelanggan bersangkutan untuk konfirmasi janji temu atau laporan kedatangan. |
 | **Alur Request Penggantian SSID & Password WiFi** | **Prosedur Terverifikasi Anti-Salah Setting:**<br>1. **Pengajuan:** Admin Wilayah atau Teknisi di lapangan membuka form *Request Ubah WiFi* $\rightarrow$ input SSID Baru & Password Baru $\rightarrow$ status `menunggu_verifikasi_noc`.<br>2. **Validasi & Eksekusi NOC:** NOC memvalidasi permintaan, lalu mengeksekusi via API TR-069 GenieACS (atau konfigurasi manual).<br>3. **Pembaruan Otomatis:** Begitu NOC menekan **`[Verifikasi & Simpan]`**, SSID dan password baru tersimpan terenkripsi pada baris `PERANGKAT_INVENTARIS` yang dipilih. Audit mencatat bahwa password berubah, tanpa menyimpan nilainya. Portal pelanggan tidak mengubah WiFi dan tidak me-reboot modem. |
-| **Status berlangganan** | Sebelum terpasang: `menunggu_verifikasi_pusat` atau `siap_pasang`. Setelah terpasang: `aktif`, `tunda_isolir`, atau `isolir`. `isolir` diisi hanya saat `status_layanan` menjadi `putus`. `menunggu_router`, `gagal_putus`, dan `tidak_serempak` tetap `aktif`. `berhenti` menutup langganan. Cuti adalah satu baris `RIWAYAT_SUSPEND` berjenis `cuti` yang `selesai`-nya kosong. `next_isolir` adalah tanggal putus berikutnya. `last_suspend` dan `last_active` menyalin baris riwayat yang sedang berlaku. `status_layanan` tetap status sinkronisasi router. |
+| **Status berlangganan** | Sebelum terpasang: `menunggu_verifikasi_pusat` atau `siap_pasang`. Setelah terpasang: `aktif`, `tunda_isolir`, atau `isolir`. `isolir` diisi hanya saat `status_layanan` menjadi `putus`. `menunggu_router`, `gagal_putus`, dan `tidak_serempak` tetap `aktif`. `berhenti` menutup langganan. Cuti adalah satu baris `RIWAYAT_SUSPEND` berjenis `cuti` yang `selesai`-nya kosong. `next_isolir` adalah satu-satunya tanggal putus. `last_suspend` dan `last_active` menyalin baris riwayat yang sedang berlaku. `status_layanan` tetap status sinkronisasi router. |
+| **Profil saat suspend** | Profil menampilkan `status_langganan` yang sedang berlaku. Bila statusnya `isolir` atau `tunda_isolir`, layar membaca baris `RIWAYAT_SUSPEND` yang terbuka: waktu `mulai`, `catatan_mulai`, `dibuat_oleh`, dan `bukti_percakapan`. `bukti_percakapan` adalah tangkapan layar percakapan pelanggan yang meminta suspend, disimpan di disk privat, dan boleh kosong bila suspend berasal dari scheduler. `alasan` dan `disetujui_oleh` dibaca dari baris `RIWAYAT_ISOLIR` yang terbuka. |
 | **Paket Layanan** | Harga paket adalah integer rupiah yang sudah termasuk PPN. Itu nominal yang ditagih, dipotong dompet, dan dicetak. Tidak ada perhitungan PPN kedua di kasir. |
 | **Mikrotik (Many-to-Many)** | Terhubung ke 1 atau banyak Mikrotik via tabel pivot `pelanggan_mikrotik` (IP statis per link) |
 | **Isolir** | Pelanggan baru: `batas_tunggakan = 2`, `siklus_tagihan = tanggal_tetap`. Batas `1` memutus pada satu tagihan lewat jatuh tempo. Batas kosong tidak pernah diputus scheduler. Siklus `prabayar` mengisi `next_isolir` dari tanggal bayar ditambah 30 hari, kecuali pembayaran terjadi selama penundaan toleransi. Rincian ada di `docs/logika-isolir.md`. |
@@ -583,13 +584,13 @@ flowchart TD
 | Kelompok Tunggakan | Status Lapangan | Perlakuan & Tampilan Dashboard |
 |---|---|---|
 | **Kelompok 1: Tunggakan Lapangan (Risiko Piutang)** | • `belum_ditagih`<br>• `didatangi_belum_bayar`<br>• `didatangi_belum_ketemu` | **Kartu Merah di Dashboard:** Menampilkan total nominal rupiah dan jumlah pelanggan yang harus segera ditindaklanjuti kolektor. Dilengkapi tombol tracking kunjungan kolektor & GPS lokasi saat didatangi. |
-| **Kelompok 2: Tunggakan Terkonfirmasi** | • `perpanjangan_tempo_1_bulan`<br>• `vip_siklus_non_reguler` | Kartu ini hanya label penagihan. `perpanjangan_tempo_1_bulan` muncul setelah persetujuan menulis `isolir_ditunda_hingga`, default 30 hari sejak tanggal setuju, dengan `alasan_penundaan = toleransi`. `vip_siklus_non_reguler` tidak menunda isolir. |
+| **Kelompok 2: Tunggakan Terkonfirmasi** | • `perpanjangan_tempo_1_bulan`<br>• `vip_siklus_non_reguler` | Kartu ini hanya label penagihan. `perpanjangan_tempo_1_bulan` muncul setelah persetujuan menulis `next_isolir` 30 hari sejak tanggal setuju. `alasan` pada `RIWAYAT_ISOLIR` menjadi `toleransi`. `vip_siklus_non_reguler` tidak menunda isolir. |
 
 #### Fitur Pencatatan Kunjungan Kolektor di Lapangan:
 * Saat kolektor datang ke rumah pelanggan namun **tidak terjadi pembayaran**, kolektor dapat memilih tombol status cepat:
   1. **[🚪 Rumah Kosong / Tidak Ketemu]** $\rightarrow$ status otomatis menjadi `didatangi_belum_ketemu` + rekam GPS & jam kunjungan.
   2. **[⏳ Belum Bayar / Minta Datang Lagi]** $\rightarrow$ input catatan alasan (misal: "gajian tgl 25") $\rightarrow$ status menjadi `didatangi_belum_bayar`.
-  3. **[📝 Pengajuan Perpanjangan 1 Bulan]** masuk antrean Admin Global. Persetujuan menulis `isolir_ditunda_hingga` 30 hari sejak tanggal setuju dan `alasan_penundaan = toleransi`. Bila pelanggan sedang putus oleh scheduler, `nyalakan_layanan` dipanggil.
+  3. **[📝 Pengajuan Perpanjangan 1 Bulan]** masuk antrean Admin Global. Persetujuan menulis `next_isolir` 30 hari sejak tanggal setuju dan `alasan = toleransi` pada `RIWAYAT_ISOLIR`. Bila pelanggan sedang putus oleh scheduler, `nyalakan_layanan` dipanggil.
 
 ---
 
@@ -615,7 +616,7 @@ Sistem billing ISP dengan ribuan klien wajib memiliki mekanisme migrasi data cep
   * Disediakan tombol **[📥 Download Template Invoice Masa Lalu (.xlsx)]**.
   * Memungkinkan admin memasukkan seluruh rekam jejak keuangan lama:
     * Tagihan yang sudah **LUNAS** di masa lalu (sebagai arsip riwayat pelanggan).
-    * Tagihan langganan yang belum lunas dari bulan sebelumnya. Setiap pelanggan impor punya `isolir_mulai_evaluasi`. Scheduler mengabaikan pelanggan itu sampai tanggal tersebut, supaya malam pertama setelah migrasi tidak mengisolir massal.
+    * Tagihan langganan yang belum lunas dari bulan sebelumnya. Impor mengisi `next_isolir`, bukan tanggal evaluasi terpisah, supaya malam pertama setelah migrasi tidak mengisolir massal.
   * Kolom mencakup: `no_pelanggan` (atau no HP), `no_tagihan_lama`, `periode_bulan`, `nominal`, `terbayar`, `sisa`, `status`, `tanggal_bayar_lama`, `metode_bayar`, dan `kolektor`.
 * **Export Rekap Tagihan & Pembukuan:**
   * Admin dapat mengekspor rekap tagihan per periode bulan, per kolektor, per metode (Cash/Transfer), atau daftar piutang belum bayar ke format **Excel (.xlsx) dan PDF**.
@@ -785,7 +786,7 @@ ACS (GenieACS / TR-069) adalah jalur utama. SNMP OLT adalah cadangan yang langsu
 
 ```mermaid
 flowchart TD
-    START["Klik [⚡ Cek Redaman Live] di Peta / HP Teknisi"] --> CHECK_ACS{"1. JALUR UTAMA (DEFAULT):\nApakah Pelanggan Terhubung ke ACS?\n(acs_device_id != null & ACS Server Online)"}
+    START["Klik [⚡ Cek Redaman Live] di Peta / HP Teknisi"] --> CHECK_ACS{"1. JALUR UTAMA (DEFAULT):\nApakah perangkat ini terhubung ke ACS?\n(acs_device_id pada PERANGKAT_INVENTARIS terisi & ACS Server Online)"}
 
     CHECK_ACS -->|YA, Support ACS| RUN_ACS["Tembak Server GenieACS TR-069 (Default)"]
     RUN_ACS --> ACS_OK{"Apakah Query ACS Berhasil?"}
@@ -1225,12 +1226,7 @@ erDiagram
         string status_layanan
         string sumber_putus
         date next_isolir
-        date isolir_mulai_evaluasi
-        date isolir_ditunda_hingga
-        string alasan_penundaan
-        bigint penundaan_disetujui_oleh
         int hari_isolir
-        string acs_device_id
         decimal latitude
         decimal longitude
         datetime tanggal_instalasi
@@ -1240,7 +1236,6 @@ erDiagram
         datetime last_active
         text last_active_note
         datetime tanggal_daftar
-        text penundaan_catatan
         string tanda_transfer
     }
 
@@ -1248,6 +1243,7 @@ erDiagram
         bigint id
         string serial_number
         string mac_address
+        string acs_device_id
         int onu_id
         string onu_sn
         string tipe_merk
@@ -1280,6 +1276,7 @@ erDiagram
         text catatan_mulai
         text catatan_selesai
         bigint dibuat_oleh
+        string bukti_percakapan
     }
 
     RIWAYAT_PENGGANTIAN_ALAT {
@@ -1521,6 +1518,8 @@ erDiagram
         datetime nyala_kembali
         string sumber_putus
         string sumber_nyala
+        string alasan
+        bigint disetujui_oleh
     }
 
     LOG_API_MIKROTIK {

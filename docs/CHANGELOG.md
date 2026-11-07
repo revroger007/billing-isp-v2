@@ -20,9 +20,10 @@
 - Buku admin kantor memakai `MUTASI_KAS`. Kolektor, admin PC, admin ponsel, dan kios memakai satu aksi `catat_pembayaran`.
 - `N` hanya dihitung dari tagihan yang menjadi lunas. Isolir tanggal 1 berjalan setelah autopay selesai.
 - Satu `PEMBAYARAN` terbagi ke banyak `ALOKASI_PEMBAYARAN`.
-- `tidak_serempak` ikut nyala bila syarat putus gugur. Perpanjangan satu bulan menulis `isolir_ditunda_hingga`.
+- Penundaan hanya mengisi `next_isolir`. `alasan` dan `disetujui_oleh` ada di `RIWAYAT_ISOLIR`. `acs_device_id` ada di `PERANGKAT_INVENTARIS`. Profil suspend menampilkan waktu, alasan, pelaku, dan `bukti_percakapan`.
+- `tidak_serempak` ikut nyala bila syarat putus gugur. Perpanjangan satu bulan menulis `next_isolir`.
 - Tagihan unik per rentang layanan. Prorata dan komisi memakai integer. Potongan memakai `hari_mulai_putus`.
-- `tanggal_daftar`, `penundaan_catatan`, dan `status_langganan` terpisah dari status isolir.
+- `tanggal_daftar` dan `status_langganan` terpisah dari status isolir.
 - Log API, kolektor, SNMP cadangan, webhook, WiFi, Google, dan batas wilayah diselaraskan. Primary key dan kolom rupiah memakai `bigint`.
 
 ## 2026-11-06
