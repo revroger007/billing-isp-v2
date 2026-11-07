@@ -1,6 +1,6 @@
 # 🌐 Rancangan Aplikasi Billing Internet — Microprovider / Mini ISP
 
-> Versi: 2.31 — Tahap 1: Definisi Fitur
+> Versi: 2.32 — Tahap 1: Definisi Fitur
 > Tanggal: 7 November 2026
 
 Keputusan yang mengunci uang, isolir, peran, dan batas tahap awal ada di `docs/decisions/001-keputusan-review-spesifikasi.md`. Jika kalimat di bawah berbeda dengan keputusan itu, keputusan yang dipakai.
@@ -64,7 +64,7 @@ flowchart TD
 | **Topologi Sumber Sambungan Fleksibel** | **Mengakomodasi Realita Lapangan RT/RW Net:** Pelanggan tidak dipaksa harus selalu dari tiang ODP resmi. Disediakan 4 pilihan sumber koneksi:<br>1. **ODP Tiang (Standar Fiber):** Tersambung ke tiang ODP resmi (pilih ODP dan Nomor Port).<br>2. **Splitter Rumah Tetangga (Sub-Splitter / Numpang):** Mengambil sinyal optik dari splitter kecil (misal ratio 1:2 atau 1:4) yang dititipkan di rumah tetangga terdekat (pilih nama tetangga *parent* & catatan posisi box di teras/atap).<br>3. **Estafet HTB / Switch LAN:** Pelanggan dicolok kabel LAN UTP dari media converter HTB / Switch Hub yang dititipkan di rumah warga atau tiang gang (pilih nama warga sumber HTB & port switch).<br>4. **Koneksi Langsung:** Ditarik langsung dari switch/router kantor pusat. |
 | **Peta Pohon Dependensi (*Parent-Child Tree*)** | **Kunci Diagnosa Gangguan:** Jika 3 rumah estafet HTB mati bersamaan, sistem langsung menandai bahwa sumber masalahnya berasal dari **titik rumah induk (parent)** yang mati lampu atau adaptor HTB-nya tercabut, bukan kabel jalanan yang putus! |
 | **Login Portal Pelanggan** | Username, email, nomor HP, dan nomor pelanggan. Google hanya menaut ke akun yang emailnya sudah sama dan tidak membuat akun pelanggan baru. |
-| **Data router pelanggan** | Satu pelanggan dapat memiliki lebih dari satu perangkat. Semuanya baris `PERANGKAT_INVENTARIS` dengan `pelanggan_id` terisi: SSID, password WiFi, IP perangkat, gateway, serta merk dan tipe. Login standar adalah `username_biasa` dan `password_biasa`, tampil untuk teknisi. Login superadmin hanya tampil untuk pemegang izin `router_superadmin`. Super Admin dan NOC memegang izin itu. Semua password terenkripsi. IP untuk address-list isolir tetap di `pelanggan_mikrotik`, bukan di baris perangkat. |
+| **Data router pelanggan** | Satu pelanggan dapat memiliki lebih dari satu perangkat. Semuanya baris `PERANGKAT_INVENTARIS` dengan `pelanggan_id` terisi: SSID, password WiFi, IP perangkat, gateway, `tipe_merk`, `username_koneksi`, `password_koneksi`, `foto_instalasi`, dan `file_backup_config`. Login standar adalah `username_biasa` dan `password_biasa`, tampil untuk teknisi. Login superadmin hanya tampil untuk pemegang izin `router_superadmin`. Super Admin dan NOC memegang izin itu. Semua password terenkripsi. IP untuk address-list isolir tetap di `pelanggan_mikrotik`, bukan di baris perangkat. |
 | **Login web perangkat WiFi** | Login standar dan superadmin ada pada `PERANGKAT_INVENTARIS`. Teknisi melihat `username_biasa` dan `password_biasa`. Pemegang `router_superadmin` melihat login superadmin. Teknisi tidak menerima kolom superadmin lewat API. |
 | **Akses Teknisi Saat Perbaikan & Tombol WA** | **Kemudahan Teknisi di Lapangan:**<br>Saat menerima tiket servis/perbaikan, teknisi dapat langsung membuka tab data teknis (melihat SSID, password WiFi, merk alat, tanggal pasang, dan mengunduh file backup config).<br>• **Tombol `[📲 Hubungi Pelanggan via WA]`:** Satu sentuhan di HP teknisi langsung membuka chat WhatsApp ke pelanggan bersangkutan untuk konfirmasi janji temu atau laporan kedatangan. |
 | **Alur Request Penggantian SSID & Password WiFi** | **Prosedur Terverifikasi Anti-Salah Setting:**<br>1. **Pengajuan:** Admin Wilayah atau Teknisi di lapangan membuka form *Request Ubah WiFi* $\rightarrow$ input SSID Baru & Password Baru $\rightarrow$ status `menunggu_verifikasi_noc`.<br>2. **Validasi & Eksekusi NOC:** NOC memvalidasi permintaan, lalu mengeksekusi via API TR-069 GenieACS (atau konfigurasi manual).<br>3. **Pembaruan Otomatis:** Begitu NOC menekan **`[Verifikasi & Simpan]`**, SSID dan password baru tersimpan terenkripsi pada baris `PERANGKAT_INVENTARIS` yang dipilih. Audit mencatat bahwa password berubah, tanpa menyimpan nilainya. Portal pelanggan tidak mengubah WiFi dan tidak me-reboot modem. |
@@ -1235,12 +1235,7 @@ erDiagram
         string acs_device_id
         decimal latitude
         decimal longitude
-        string username_koneksi
-        string password_koneksi
-        string tipe_merk_alat
         datetime tanggal_instalasi
-        string foto_instalasi
-        string file_backup_config
         string status_langganan
         datetime last_suspend
         text last_suspend_note
@@ -1261,6 +1256,10 @@ erDiagram
         string password_wifi
         string ip_address
         string gateway
+        string username_koneksi
+        string password_koneksi
+        string foto_instalasi
+        string file_backup_config
         string status
         bigint posisi_user_id
         bigint pelanggan_id
