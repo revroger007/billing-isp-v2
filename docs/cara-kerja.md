@@ -1,6 +1,6 @@
 # 🌐 Rancangan Aplikasi Billing Internet — Microprovider / Mini ISP
 
-> Versi: 2.18 — Tahap 1: Definisi Fitur
+> Versi: 2.19 — Tahap 1: Definisi Fitur
 > Tanggal: 7 November 2026
 
 Keputusan yang mengunci uang, isolir, peran, dan batas tahap awal ada di `docs/decisions/001-keputusan-review-spesifikasi.md`. Jika kalimat di bawah berbeda dengan keputusan itu, keputusan yang dipakai.
@@ -133,11 +133,15 @@ Periode layanan yang penuh tetap menjadi tagihan. Bila invoice periode itu sudah
 
 Rumus catatan memakai pembagian integer yang sama. Baris hitungan otomatis unik per pelanggan, jenis, dan `tanggal_mulai`. Setiap baris menyimpan `arah` (`masuk` atau `keluar`) dan `saldo_akhir`. Saldo mengendap pelanggan adalah `saldo_akhir` baris terbaru. Baris lama tidak diubah.
 
-Status `mengendap` dan `closed` sama-sama tetap di dalam saldo. Menutup baris, termasuk karena diskon, hanya mengubah status menjadi `closed`, menyimpan alasan, dan tidak menambah baris `keluar`. `saldo_akhir` tidak berkurang. Isolir tidak membaca saldo mengendap.
+Status `mengendap` dan `closed` sama-sama tetap di dalam saldo. Menutup baris, termasuk karena diskon, hanya mengubah status menjadi `closed`, menyimpan alasan, dan tidak menambah baris `keluar`. `saldo_akhir` tidak berkurang. Isolir tidak membaca saldo mengendap. Baris `closed` tidak dapat dikonversi menjadi tagihan.
 
-Pemegang `koreksi_keuangan` dapat menutup baris menjadi `closed` dan dapat mengonversi sisa tagihan menjadi saldo mengendap. Admin Wilayah hanya untuk dusun di `user_wilayah`. Baris `closed` tidak dapat dikonversi menjadi tagihan. Hanya Super Admin dan `auditor_finansial` yang dapat membuka kembali baris `closed` menjadi `mengendap`, lalu mengonversinya. Alasan wajib. Satu sumber hanya boleh dikonversi satu kali.
+Pemegang `koreksi_keuangan` dapat menutup baris menjadi `closed`. Admin Wilayah hanya untuk dusun di `user_wilayah`.
 
-Konversi saldo menjadi tagihan hanya untuk baris berstatus `mengendap`, dan hanya oleh Super Admin atau `auditor_finansial`. Sistem menambah baris `keluar` sebesar nominal sumber. Catatan sumber tetap ada. `saldo_akhir` berkurang. Sistem membuat `TAGIHAN` bertipe `konversi`, status `belum_bayar`, dan nominal yang sama. Tagihan itu dihitung tunggakan dan dapat ditagih.
+Hanya Super Admin dan `auditor_finansial` yang dapat membuka kembali baris `closed`, mengonversi saldo menjadi tagihan, mengonversi sisa tagihan menjadi saldo mengendap, menambah catatan manual, atau menghapus catatan. Alasan wajib. Satu sumber hanya boleh dikonversi satu kali. Catatan otomatis dari cuti, aktivasi, dan isolir tetap dibuat oleh sistem.
+
+Menghapus tidak menghilangkan baris. Statusnya menjadi `dihapus` dan satu baris `keluar` mengurangi `saldo_akhir`. Baris `dihapus` tidak dapat dikonversi. Menambah catatan manual menulis baris `masuk` dan menaikkan saldo.
+
+Konversi saldo menjadi tagihan hanya untuk baris berstatus `mengendap`. Sistem menambah baris `keluar` sebesar nominal sumber. Catatan sumber tetap ada. `saldo_akhir` berkurang. Sistem membuat `TAGIHAN` bertipe `konversi`, status `belum_bayar`, dan nominal yang sama. Tagihan itu dihitung tunggakan dan dapat ditagih.
 
 Konversi tagihan menjadi saldo memindahkan `sisa` yang belum dibayar. Bila belum ada pembayaran, tagihan menjadi `batal` dan satu baris `masuk` menambah saldo sebesar sisa itu. Bila sudah ada pembayaran, `nominal` tagihan diturunkan menjadi `terbayar`, statusnya `lunas`, dan sisa yang dipindahkan masuk ke saldo mengendap. Uang yang sudah masuk tidak ikut pindah.
 
@@ -1377,6 +1381,9 @@ erDiagram
         datetime ditutup_pada
         bigint dibuka_kembali_oleh
         datetime dibuka_kembali_pada
+        bigint dibuat_oleh
+        bigint dihapus_oleh
+        datetime dihapus_pada
         text alasan
         bigint tagihan_id
         bigint sumber_id
