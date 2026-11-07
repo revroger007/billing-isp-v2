@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-11-07 (keputusan 003)
+
+- `next_isolir` menjadi hasil hitung `hitung_isolir_berikutnya`. Data masukannya `paid_through` (`prabayar`), `isolir_berlaku_mulai` dan tagihan (`tanggal_tetap`), dan tabel baru `JENDELA_PENUNDAAN`. `hari_isolir` dihapus.
+- `prabayar` memakai satu rumus `max(paid_through, tanggal_bayar) + N x 30 hari - hari_nyala_belum_dibayar`. Membayar lebih lambat tidak lagi menghasilkan tanggal putus yang lebih jauh. Prorata tidak dipakai untuk `prabayar`.
+- Tagihan `prabayar` terbit per periode 30 hari saat dibayar. Instalasi mengisi `paid_through` = `tanggal_instalasi` + 30 hari dan menerbitkan tagihan periode pertama.
+- Transfer `tidak_wajib` pada `prabayar` langsung membeli periode. Penolakan membatalkan periode dan memutar ulang `paid_through` dari `paid_through_sebelum` pada `PEMBAYARAN`.
+- `tanggal_tetap` memutus pada jatuh tempo tagihan ke-`batas_tunggakan`. Admin Global mengisi `isolir_berlaku_mulai` saat verifikasi.
+- Toleransi, bypass, dan perpanjangan menulis `JENDELA_PENUNDAAN`. `RIWAYAT_ISOLIR` hanya mencatat putus nyata.
+- Job harian dan pembayaran mengunci baris pelanggan. Job menghitung ulang `next_isolir` semua pelanggan sebelum memutus dan memberi alert bila hasilnya berbeda.
+- `logika-isolir.md` versi 3.0 berisi daftar unit test wajib untuk `hitung_isolir_berikutnya` dan `alokasi_pembayaran`.
+
+Masih TODO: konfirmasi asumsi di keputusan 003, pilihan PostgreSQL atau MySQL untuk kendala unik yang mengabaikan tagihan `batal`, tanda `tidak_tertib` untuk tagihan `biaya_pasang` yang baru terbit, serta temuan review nomor 3, 4, dan 7.
+
 ## 2026-11-07 (keputusan 002)
 
 - Biaya pasang dan semua prorata terbit sebagai tagihan `biaya_pasang` dan `prorata`. Keduanya piutang yang ditagih kolektor, tetapi tidak dihitung tunggakan isolir, tidak menambah `N`, dan tidak mengubah `next_isolir`. Biaya aktivasi dan diskon tetap di `HUTANG_MENGENDAP`.
