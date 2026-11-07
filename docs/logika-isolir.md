@@ -86,7 +86,7 @@ Sisa uang yang tidak menutup tagihan berikutnya tetap `sebagian` pada tagihan it
 Urutan pada `prabayar`:
 
 1. Tagihan `langganan` yang sudah terbit dan belum lunas, urut `jatuh_tempo` terlama. Ini tagihan periode pertama saat instalasi dan tagihan lama dari masa `tanggal_tetap`. Melunasinya tidak menambah hari.
-2. Sisa uang membeli periode baru. `N` = sisa uang dibagi harga paket, dibulatkan ke bawah. Setiap periode menjadi satu tagihan `langganan` baru, `periode_penuh = true`, dan langsung lunas.
+2. Sisa uang membeli periode baru. `N` = sisa uang dibagi harga paket untuk lokasi pelanggan, dibulatkan ke bawah. Setiap periode menjadi satu tagihan `langganan` baru, `periode_penuh = true`, dan langsung lunas.
 3. Sisa uang berikutnya melunasi tagihan lain yang masih bersisa, urut `jatuh_tempo`.
 4. Sisa yang masih ada mengikuti aturan kelebihan bayar di kanal: kembalian atau dompet.
 
@@ -98,11 +98,11 @@ Urutan pada `prabayar`:
 
 Bagian ini hanya untuk `tanggal_tetap`. Siklus `prabayar` tidak membaca jumlah tunggakan.
 
-Hanya tagihan `langganan` dengan `periode_penuh = true` yang dihitung isolir. `periode_penuh` berarti nominalnya utuh sebesar harga paket pada saat tagihan terbit. Tagihan `konversi`, `prorata`, `biaya_pasang`, denda, dan invoice `manual` diperlakukan sama: piutang yang dapat ditagih dan tidak dihitung di `jumlah`. Saldo mengendap tidak dihitung. Bulan yang tidak diterbitkan tidak dihitung lunas dan tidak menyalakan layanan.
+Hanya tagihan `langganan` dengan `periode_penuh = true` yang dihitung isolir. `periode_penuh` ditetapkan saat tagihan terbit, yaitu bila nominalnya utuh sebesar harga paket untuk lokasi pelanggan pada saat itu. Edit nominal sesudahnya tidak mengubah `periode_penuh`. Tagihan `konversi`, `prorata`, `biaya_pasang`, denda, dan invoice `manual` diperlakukan sama: piutang yang dapat ditagih dan tidak dihitung di `jumlah`. Saldo mengendap tidak dihitung. Bulan yang tidak diterbitkan tidak dihitung lunas dan tidak menyalakan layanan.
 
 Satu tagihan penuh dihitung tunggakan hanya bila `terbayar = 0` dan statusnya `belum_bayar` atau `menunggu_verifikasi`. Tagihan penuh yang sudah dibayar sebagian tidak dihitung, walaupun `sisa` masih ada. Status invoice tetap `sebagian`. Bukti transfer pada mode `tidak_wajib` membuat tagihan `lunas` dan dapat menyalakan layanan. Pada `prabayar`, periode yang dibeli langsung masuk `N` walaupun tanda bukti masih `belum_diverifikasi`. Mode `wajib`, tanda pelanggan, atau kolektor level 2 membuat status `menunggu_verifikasi`, belum membeli periode, dan belum menyalakan layanan.
 
-Pelanggan yang punya `sisa > 0` pada tagihan yang tidak dihitung isolir mendapat tanda `tidak_tertib`. Tanda itu berarti tidak tertib administrasi atau ada tunggakan nonbulanan. Tanda dihitung saat profil dibuka, bukan disimpan terpisah. Bila siklusnya masih `tanggal_tetap`, profil menampilkan rekomendasi untuk menjadikannya pelanggan `prabayar`. Rekomendasi tidak mengubah siklus.
+Tanda `tidak_tertib` dipasang manual oleh Admin Global, Admin Wilayah, kolektor, atau `auditor_finansial`, bukan dihitung dari tagihan. Tanda itu tidak dibaca `hitung_isolir_berikutnya` dan tidak mengubah jadwal isolir. Bila siklusnya masih `tanggal_tetap`, profil menampilkan rekomendasi untuk menjadikannya pelanggan `prabayar`. Rekomendasi tidak mengubah siklus.
 
 ## Siklus tanggal_tetap
 
@@ -120,7 +120,9 @@ Jika jumlah < batas dan sumber_putus = scheduler dan status_layanan bukan nyala:
 
 `batas_tunggakan = null` membuat scheduler melewati putus otomatis. Bila putus sebelumnya berasal dari scheduler, jalan berikutnya menyalakan layanan. Putus manual tidak ikut terbuka.
 
-Pembayaran tidak menggeser tanggal apa pun. Pembayaran hanya mengubah tagihan, lalu `next_isolir` dihitung ulang. Tagihan penuh yang sudah dibayar sebagian tidak menambah `jumlah`. Contoh tagihan Rp100.000 dibayar Rp50.000 tetap berstatus `sebagian`, tetapi untuk isolir dianggap tidak menunggak. Pelanggan itu mendapat tanda `tidak_tertib`.
+Pembayaran tidak menggeser tanggal apa pun. Pembayaran hanya mengubah tagihan, lalu `next_isolir` dihitung ulang. Tagihan penuh yang sudah dibayar sebagian tidak menambah `jumlah`. Contoh tagihan Rp100.000 dibayar Rp50.000 tetap berstatus `sebagian`, tetapi untuk isolir dianggap tidak menunggak. Petugas dapat memasang tanda `tidak_tertib` secara manual.
+
+Admin Global dapat mengedit `jatuh_tempo` tagihan yang belum dibayar sama sekali. Karena `T` dibaca dari `jatuh_tempo`, edit itu menggeser tanggal putus dan memanggil `hitung_isolir_berikutnya` di transaksi yang sama. Audit menyimpan nilai sebelum dan sesudah beserta alasan. Kolektor tidak mengedit jatuh tempo. Kolektor mengajukan penundaan.
 
 Contoh `batas_tunggakan = 2`, jatuh tempo tanggal 11. Pelanggan biasa membayar sekitar tanggal 18. November dibayar, Desember ditunda, Januari tidak dibayar.
 
@@ -227,11 +229,12 @@ Ada tiga jenis penundaan. Semuanya menulis satu baris `JENDELA_PENUNDAAN` dan ti
 
 | `alasan` | Diajukan | Disetujui | `batas` |
 |---|---|---|---|
-| `toleransi` | Admin Global atau Admin Wilayah | Tanpa persetujuan kedua | Tanggal yang diisi admin |
-| `bypass` | Admin Wilayah | Admin Global yang bukan pengaju | Tanggal yang diminta |
-| `perpanjangan` | Kolektor lewat ajuan perpanjangan satu bulan | Admin Global | 30 hari sejak tanggal setuju |
+| `toleransi` | Admin Global atau Admin Wilayah, langsung | Tanpa persetujuan kedua | Tanggal yang diisi admin |
+| `toleransi` | Kolektor lewat pengajuan penundaan | Admin Global | Tanggal yang diminta kolektor |
+| `bypass` | Admin Wilayah lewat pengajuan penundaan | Admin Global yang bukan pengaju | Tanggal yang diminta |
+| `perpanjangan` | Kolektor lewat pengajuan perpanjangan satu bulan | Admin Global | 30 hari sejak tanggal setuju |
 
-Penundaan baru menggantikan penundaan lama karena yang berlaku adalah baris terbaru. Baris lama tetap tersimpan sebagai audit. `disetujui_oleh` wajib untuk `bypass` dan `perpanjangan`.
+Penundaan baru menggantikan penundaan lama karena yang berlaku adalah baris terbaru. Baris lama tetap tersimpan sebagai audit. `disetujui_oleh` wajib untuk penundaan yang berasal dari pengajuan. Kolektor dan Admin Wilayah hanya mengajukan untuk pelanggan pada dusun di `user_wilayah`.
 
 Bila pelanggan sedang putus oleh scheduler saat penundaan disetujui, `nyalakan_layanan` dipanggil. Saat semua router sukses, baris `RIWAYAT_ISOLIR` yang terbuka ditutup dengan `nyala_kembali` dan `sumber_nyala` sesuai `alasan`. Bila pada tanggal `batas` syarat putus masih terpenuhi, job harian memutus lagi dan membuat baris `RIWAYAT_ISOLIR` baru. Bila API gagal, penundaan tetap tersimpan dan `status_layanan` menjadi `menunggu_router` atau `gagal_nyala`. Layar tidak boleh mengaku layanan sudah nyala sebelum semua router sukses.
 
@@ -298,7 +301,7 @@ Tambahan pada `pelanggan`:
 | `next_isolir` | date atau null | Hasil `hitung_isolir_berikutnya`. Tidak ditulis oleh fungsi lain. |
 | `tanggal_daftar` | datetime | Waktu pendaftaran. Terpisah dari `tanggal_instalasi`. |
 
-`JENDELA_PENUNDAAN` satu baris per penundaan: pelanggan, `alasan` (`toleransi`, `bypass`, `perpanjangan`), `mulai`, `batas`, `dibuat_oleh`, `disetujui_oleh`, `keterangan`, dan waktu dibuat. Baris tidak diedit setelah disetujui.
+`JENDELA_PENUNDAAN` satu baris per penundaan: pelanggan, `alasan` (`toleransi`, `bypass`, `perpanjangan`), `mulai`, `batas`, `dibuat_oleh`, `disetujui_oleh`, `pengajuan_penundaan_id` (kosong untuk toleransi langsung), `keterangan`, dan waktu dibuat. Baris tidak diedit setelah disetujui.
 
 `RIWAYAT_ISOLIR` satu baris per periode putus nyata seorang pelanggan, bukan per router dan bukan per percobaan. Baris dibuat saat `status_layanan` menjadi `putus` dan ditutup saat menjadi `nyala`. `sumber_putus` berisi `scheduler` atau `manual`. `sumber_nyala` berisi `scheduler`, `pembayaran`, `admin`, `toleransi`, `bypass`, atau `perpanjangan`. `jendela_penundaan_id` terisi bila nyala berasal dari penundaan. Hanya boleh ada satu baris terbuka, yaitu yang `nyala_kembali`-nya masih kosong. `tidak_serempak` dan percobaan gagal tidak membuat baris baru. Cuti tidak menulis tabel ini. Rentang pada tabel ini adalah sumber hari putus untuk `hari_nyala_belum_dibayar`.
 
@@ -313,7 +316,7 @@ mulai_putus 5 Desember,  nyala_kembali 15 Desember
 
 `log_api_mikrotik` satu baris per percobaan per Mikrotik: siklus saat itu, jumlah tunggakan, salinan `next_isolir`, IP yang ditulis, `status_api` (`pending`, `sukses`, `gagal`), dan `jumlah_percobaan`.
 
-Permintaan bypass menyimpan pelanggan, pengaju, tanggal yang diminta, keterangan, status `menunggu` / `disetujui` / `ditolak`, pemroses, dan alasan tolak. Persetujuan menulis satu baris `JENDELA_PENUNDAAN`.
+`PENGAJUAN_PENUNDAAN` menyimpan pengajuan toleransi, bypass, dan perpanjangan: pelanggan, `alasan`, pengaju, tanggal yang diminta, keterangan, status `menunggu` / `disetujui` / `ditolak`, pemroses, dan alasan tolak. Persetujuan menulis satu baris `JENDELA_PENUNDAAN` yang merujuk pengajuan itu.
 
 ## Kasus uji wajib
 

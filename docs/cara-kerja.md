@@ -70,10 +70,10 @@ flowchart TD
 | **Alur Request Penggantian SSID & Password WiFi** | **Prosedur Terverifikasi Anti-Salah Setting:**<br>1. **Pengajuan:** Admin Wilayah atau Teknisi di lapangan membuka form *Request Ubah WiFi* $\rightarrow$ input SSID Baru & Password Baru $\rightarrow$ status `menunggu_verifikasi_noc`.<br>2. **Validasi & Eksekusi NOC:** NOC memvalidasi permintaan, lalu mengeksekusi via API TR-069 GenieACS (atau konfigurasi manual).<br>3. **Pembaruan Otomatis:** Begitu NOC menekan **`[Verifikasi & Simpan]`**, SSID dan password baru tersimpan terenkripsi pada baris `PERANGKAT_INVENTARIS` yang dipilih. Audit mencatat bahwa password berubah, tanpa menyimpan nilainya. Portal pelanggan tidak mengubah WiFi dan tidak me-reboot modem. |
 | **Status berlangganan** | Sebelum terpasang: `menunggu_verifikasi_pusat` atau `siap_pasang`. Setelah terpasang: `aktif`, `tunda_isolir`, atau `isolir`. `isolir` diisi hanya saat `status_layanan` menjadi `putus`. `menunggu_router`, `gagal_putus`, dan `tidak_serempak` tetap `aktif`. `berhenti` menutup langganan. Cuti adalah satu baris `RIWAYAT_SUSPEND` berjenis `cuti` yang `selesai`-nya kosong. `next_isolir` adalah satu-satunya tanggal putus dan hanya ditulis oleh `hitung_isolir_berikutnya` dari `paid_through`, `isolir_berlaku_mulai`, tagihan, dan `JENDELA_PENUNDAAN`. `last_suspend` dan `last_active` menyalin baris riwayat yang sedang berlaku. `status_layanan` tetap status sinkronisasi router. |
 | **Profil saat suspend** | Profil menampilkan `status_langganan` yang sedang berlaku. Bila statusnya `isolir` atau `tunda_isolir`, layar membaca baris `RIWAYAT_SUSPEND` yang terbuka: waktu `mulai`, `catatan_mulai`, `dibuat_oleh`, dan `bukti_percakapan`. `bukti_percakapan` adalah tangkapan layar percakapan pelanggan yang meminta suspend, disimpan di disk privat, dan boleh kosong bila suspend berasal dari scheduler. Bila ada penundaan yang berlaku, `alasan`, `batas`, dan `disetujui_oleh` dibaca dari baris terbaru `JENDELA_PENUNDAAN`. |
-| **Paket Layanan** | Harga paket adalah integer rupiah yang sudah termasuk PPN. Itu nominal yang ditagih, dipotong dompet, dan dicetak. Tidak ada perhitungan PPN kedua di kasir. |
+| **Paket Layanan** | Harga paket adalah integer rupiah yang sudah termasuk PPN. Itu nominal yang ditagih, dipotong dompet, dan dicetak. Tidak ada perhitungan PPN kedua di kasir. Harga dapat berbeda per lokasi lewat `HARGA_PAKET_WILAYAH`: harga untuk dusun pelanggan dipakai lebih dulu, lalu harga untuk desanya, lalu `PAKET.harga` sebagai harga bawaan. Harga yang berlaku disalin ke `BARIS_TAGIHAN` saat tagihan terbit, sehingga perubahan harga hanya berlaku untuk tagihan berikutnya. Kecepatan paket hanya catatan di database. Billing tidak membaca atau mengubah queue Mikrotik. |
 | **Mikrotik (Many-to-Many)** | Terhubung ke 1 atau banyak Mikrotik via tabel pivot `pelanggan_mikrotik` (IP statis per link) |
 | **Isolir** | Pelanggan baru: `batas_tunggakan = 2`, `siklus_tagihan = tanggal_tetap`. `tanggal_tetap` memutus pada jatuh tempo tagihan penuh belum dibayar yang ke-`batas_tunggakan`, tidak lebih awal dari `isolir_berlaku_mulai`. Batas kosong tidak pernah diputus scheduler. `prabayar` memutus pada `paid_through`. Pembayaran `prabayar` memakai `max(paid_through, tanggal_bayar) + N x 30 hari - hari_nyala_belum_dibayar`. Rincian ada di `docs/logika-isolir.md`. |
-| **Jatuh Tempo & Prorata** | Jatuh tempo default tanggal 11 pukul 00:00 Asia/Jakarta. Bila jatuh tempo melewati akhir bulan, dipakai hari terakhir bulan itu. Prorata, diskon, dan biaya aktivasi dihitung dengan `(harga_paket * hari + jumlah_hari_periode / 2) / jumlah_hari_periode`. Hasilnya rupiah integer. Prorata dan biaya pasang terbit sebagai tagihan `prorata` dan `biaya_pasang`, menjadi piutang, dan tidak mengubah jadwal isolir. Biaya aktivasi dan diskon disimpan sebagai hutang mengendap. Pelanggan `prabayar` tidak mendapat prorata, karena hari nyala yang belum dibayar dipotong dari `paid_through` pembayaran berikutnya. |
+| **Jatuh Tempo & Prorata** | Jatuh tempo default tanggal 11 pukul 00:00 Asia/Jakarta. Bila jatuh tempo melewati akhir bulan, dipakai hari terakhir bulan itu. Prorata, diskon, dan biaya aktivasi dihitung dengan `(harga_paket * hari + jumlah_hari_periode / 2) / jumlah_hari_periode`, dengan `harga_paket` adalah harga untuk lokasi pelanggan. Hasilnya rupiah integer. Prorata dan biaya pasang terbit sebagai tagihan `prorata` dan `biaya_pasang`, menjadi piutang, dan tidak mengubah jadwal isolir. Biaya aktivasi dan diskon disimpan sebagai hutang mengendap. Pelanggan `prabayar` tidak mendapat prorata, karena hari nyala yang belum dibayar dipotong dari `paid_through` pembayaran berikutnya. |
 
 ---
 
@@ -122,9 +122,10 @@ flowchart TD
 | **Aksi "Kirim Invoice" (Direct WA)** | Di halaman admin, terdapat tombol **[📲 Kirim Invoice]**: Saat diklik, browser **langsung membuka aplikasi WhatsApp** (atau WhatsApp Web) ke nomor HP pelanggan dengan pesan siap kirim yang sudah terisi otomatis (nama, rincian tagihan, batas bayar, dan link invoice publik). |
 | **Riwayat Lengkap di Portal** | Seluruh riwayat tagihan masa lalu (lunas, belum bayar, cicilan) tersusun rapi di **Portal Pelanggan** setelah pelanggan melakukan login. |
 | **Jatuh Tempo Default** | Tanggal 11 pukul 00:00 Asia/Jakarta. Nilainya kolom `date`, bukan timestamp UTC. |
-| **Status Tagihan** | `belum_bayar`, `sebagian`, `menunggu_verifikasi`, `lunas`, `batal`. Batal wajib menulis audit nilai sebelum dan sesudah. |
+| **Status Tagihan** | `belum_bayar`, `sebagian`, `menunggu_verifikasi`, `lunas`, `batal`. Batal wajib menulis audit nilai sebelum dan sesudah. Tagihan yang sudah menerima uang, `lunas`, atau `batal` tidak dapat diedit atau dihapus. |
 | **Mekanisme Parsial** | `nominal`, `terbayar`, dan `sisa` disimpan sebagai integer rupiah dan diubah dalam satu transaksi. |
-| **Status Tunggakan** | Isolir hanya menghitung tagihan `langganan` yang `periode_penuh` dan `terbayar = 0`. Tagihan penuh yang sudah dibayar sebagian, tagihan `konversi`, `biaya_pasang`, `prorata`, dan invoice `manual` tidak memutus layanan, tetapi tetap piutang. Sisa pada tagihan yang tidak dihitung isolir memberi tanda `tidak_tertib` dan rekomendasi siklus `prabayar`. |
+| **Status Tunggakan** | Isolir hanya menghitung tagihan `langganan` yang `periode_penuh` dan `terbayar = 0`. Tagihan penuh yang sudah dibayar sebagian, tagihan `konversi`, `biaya_pasang`, `prorata`, dan invoice `manual` tidak memutus layanan, tetapi tetap piutang. |
+| **Tanda tidak tertib** | `tidak_tertib` dipasang dan dicabut manual oleh Admin Global, Admin Wilayah, kolektor, atau `auditor_finansial`, dengan `catatan_tidak_tertib` wajib. Admin Wilayah dan kolektor hanya pada dusun di `user_wilayah`. Sistem tidak memasang tanda ini otomatis. Pelanggan bertanda `tanggal_tetap` mendapat rekomendasi pindah ke `prabayar` di profil. Rekomendasi tidak mengubah siklus. |
 
 #### Hutang mengendap
 
@@ -132,21 +133,23 @@ Biaya aktivasi dan diskon adalah hitungan sementara. Nominalnya masuk tabel `HUT
 
 Periode layanan yang penuh tetap menjadi tagihan. Cuti tidak membatalkan invoice dan tidak memindahkan invoice menjadi saldo mengendap. Catatan diskon atau biaya aktivasi yang dibuat sistem adalah baris evaluasi baru. Invoice yang sudah terbit tetap apa adanya. Memindahkan sisa invoice ke saldo mengendap hanya dilakukan manual oleh Super Admin atau `auditor_finansial`. Invoice berstatus `batal` tidak dapat dipindahkan. Uang yang sudah masuk pada invoice tidak ditulis lagi sebagai saldo mengendap.
 
-Rumus catatan memakai pembagian integer yang sama. Baris hitungan otomatis unik per pelanggan, jenis, dan `tanggal_mulai`. Setiap baris menyimpan `arah` (`masuk` atau `keluar`) dan `saldo_akhir`. Saldo mengendap pelanggan adalah `saldo_akhir` baris terbaru. Aktivitas baru tidak menimpa baris lama. Edit oleh Super Admin atau `auditor_finansial` adalah pengecualian, dan saldo sesudahnya dihitung ulang.
+Rumus catatan memakai pembagian integer yang sama. Baris hitungan otomatis unik per pelanggan, jenis, dan `tanggal_mulai`. Setiap baris menyimpan `arah` (`masuk` atau `keluar`) dan `nominal`. Tidak ada kolom saldo. Saldo mengendap pelanggan dihitung setiap kali dibutuhkan: jumlah `nominal` baris `masuk` dikurangi jumlah `nominal` baris `keluar` milik pelanggan itu. Laporan total saldo mengendap memakai jumlah yang sama untuk semua pelanggan.
 
-Status `mengendap` dan `closed` sama-sama tetap di dalam saldo. Menutup baris, termasuk karena diskon, hanya mengubah status menjadi `closed`, menyimpan alasan, dan tidak menambah baris `keluar`. `saldo_akhir` tidak berkurang. Isolir tidak membaca saldo mengendap. Baris `closed` tidak dapat dikonversi menjadi tagihan.
+Status `mengendap` dan `closed` sama-sama tetap di dalam saldo. Menutup baris, termasuk karena diskon, hanya mengubah status menjadi `closed`, menyimpan alasan, dan tidak menambah baris `keluar`. Saldo tidak berkurang. Isolir tidak membaca saldo mengendap. Baris `closed` tidak dapat dikonversi menjadi tagihan.
 
 Pemegang `koreksi_keuangan` dapat menutup baris menjadi `closed`. Admin Wilayah hanya untuk dusun di `user_wilayah`.
 
-Hanya Super Admin dan `auditor_finansial` yang dapat menambah, mengedit, dan menghapus record saldo mengendap. Mereka juga dapat membuat invoice dari baris `mengendap`, membuka kembali baris `closed`, dan memindahkan sisa tagihan menjadi saldo mengendap. Alasan wajib. Satu sumber hanya boleh dijadikan invoice satu kali. Catatan otomatis diskon dan biaya aktivasi tetap dibuat oleh sistem sebagai baris evaluasi baru. Catatan itu tidak membatalkan dan tidak memindahkan invoice.
+Super Admin, Admin Global, dan `auditor_finansial` dapat menambah, mengedit, dan menghapus record saldo mengendap. Super Admin dan `auditor_finansial` juga dapat membuat invoice dari baris `mengendap`, membuka kembali baris `closed`, dan memindahkan sisa tagihan menjadi saldo mengendap. Alasan wajib. Satu sumber hanya boleh dijadikan invoice satu kali. Catatan otomatis diskon dan biaya aktivasi tetap dibuat oleh sistem sebagai baris evaluasi baru. Catatan itu tidak membatalkan dan tidak memindahkan invoice.
 
-Menambah record menulis baris `masuk` dan menaikkan `saldo_akhir`.
+Menambah record menulis satu baris baru.
 
-Mengedit mengubah nominal, jenis, tanggal, atau keterangan pada record yang ada. Audit menyimpan nilai sebelum dan sesudah. Semua baris saldo pelanggan itu dikunci `lockForUpdate`. `saldo_akhir` record itu dan semua record sesudahnya dihitung ulang dalam transaksi yang sama. Baris lain tidak dihapus.
+Mengedit mengubah nominal, jenis, arah, tanggal, atau keterangan pada record yang ada. Audit menyimpan nilai sebelum dan sesudah. Baris lain tidak disentuh, karena tidak ada saldo yang disimpan.
 
-Menghapus menghilangkan record dari tabel. Audit menyimpan salinan nilai record itu sebelum hilang. Semua baris saldo pelanggan itu dikunci `lockForUpdate`, lalu `saldo_akhir` record sesudahnya dihitung ulang. Hapus ditolak bila record itu sudah menjadi sumber tagihan `konversi` yang belum `batal`. Bila record harus tetap ada, gunakan status `closed` atau edit, bukan hapus.
+Menghapus menghilangkan record dari tabel. Audit menyimpan salinan nilai record itu sebelum hilang.
 
-Membuat invoice hanya dari baris berstatus `mengendap`. Jatuh temponya adalah tanggal konversi. Sistem menambah baris `keluar` sebesar nominal sumber. Catatan sumber tetap ada. `saldo_akhir` berkurang. Sistem membuat `TAGIHAN` bertipe `konversi`, `periode_penuh = false`, status `belum_bayar`, dan nominal yang sama. Tagihan itu diperlakukan seperti `biaya_pasang`: piutang yang dapat ditagih, tidak dihitung isolir, dan tidak menambah `N`. Konversi ini tidak menulis `MUTASI_KAS` dan tidak mengubah dompet.
+Edit dan hapus ditolak bila record itu sumber atau hasil konversi dengan tagihan yang belum `batal`, yaitu record yang `tagihan_id`-nya terisi atau yang dirujuk `sumber_id` baris lain. Konversi dibatalkan dulu lewat tagihannya.
+
+Membuat invoice hanya dari baris berstatus `mengendap`. Jatuh temponya adalah tanggal konversi. Sistem menambah baris `keluar` sebesar nominal sumber. Catatan sumber tetap ada. Saldo berkurang. Sistem membuat `TAGIHAN` bertipe `konversi`, `periode_penuh = false`, status `belum_bayar`, dan nominal yang sama. Tagihan itu diperlakukan seperti `biaya_pasang`: piutang yang dapat ditagih, tidak dihitung isolir, dan tidak menambah `N`. Konversi ini tidak menulis `MUTASI_KAS` dan tidak mengubah dompet.
 
 Konversi tagihan menjadi saldo memindahkan `sisa` yang belum dibayar. `nominal` dan `terbayar` tidak diubah. `sisa` menjadi `nominal - terbayar - nominal_dipindah`. Status menjadi `lunas` hanya bila `terbayar + nominal_dipindah` sama dengan `nominal`. Uang yang sudah masuk tetap pada tagihan dan tidak masuk saldo mengendap. Konversi ini tidak menulis `MUTASI_KAS`.
 
@@ -442,7 +445,7 @@ Verifikasi dan koreksi buku tagihan, kas, invoice, dan bukti transfer pelanggan 
 | Aksi | Yang ditulis |
 |---|---|
 | Setujui atau tolak bukti transfer | Tanda pembayaran menjadi `sudah_diverifikasi` atau `ditolak`. Tolak pada tagihan yang sudah lunas menulis pembayaran balik. |
-| Koreksi invoice | Hanya Super Admin dan `auditor_finansial`. Lihat bagian invoice manual. |
+| Koreksi invoice | Hanya invoice yang belum dibayar sama sekali. Jatuh tempo oleh Super Admin atau Admin Global. Nominal, pembatalan, dan hapus oleh Super Admin atau `auditor_finansial`. Lihat bagian invoice manual. |
 | Koreksi pembayaran | Pembatalan memakai `reverses_id` pada `PEMBAYARAN` baru. Baris lama tidak dihapus. |
 | Koreksi kas | Baris `MUTASI_KAS` baru berjenis `koreksi` pada periode yang masih terbuka. `saldo_akhir` baris lama tidak ditulis ulang. |
 
@@ -450,13 +453,20 @@ Admin Wilayah yang memegang izin hanya membuka pelanggan pada dusun di `user_wil
 
 #### Invoice manual
 
-Hanya Super Admin dan `auditor_finansial` yang dapat menambah, mengedit, dan menghapus invoice secara manual. Alasan wajib. Audit menyimpan nilai sebelum dan sesudah.
+Invoice terkunci bila `terbayar` lebih dari 0, `nominal_dipindah` lebih dari 0, atau statusnya `lunas`, `menunggu_verifikasi`, atau `batal`. Invoice terkunci tidak dapat diedit, dibatalkan, atau dihapus oleh siapa pun. Perubahan uang yang sudah masuk memakai pembayaran balik lewat `reverses_id`. Setelah pembayaran dibalik dan `terbayar` kembali 0, invoice tidak terkunci lagi.
 
-Menambah invoice membuat `TAGIHAN` baru dengan nomor dari sequence. `terbayar` mulai dari 0 dan `sisa` sama dengan `nominal`. Periode penuh memakai tipe `langganan` dan tetap mematuhi kunci unik `(pelanggan_id, tipe_tagihan, layanan_mulai)`. Biaya di luar periode memakai tipe `manual`.
+Invoice yang belum dibayar sama sekali dapat diubah dengan aturan berikut. Alasan wajib pada setiap aksi. Audit menyimpan nilai sebelum dan sesudah.
 
-Mengedit dapat mengubah nominal, jatuh tempo, keterangan, dan status. `sisa` dihitung ulang dari `nominal - terbayar - nominal_dipindah`. Edit ditolak bila nominal baru lebih kecil dari `terbayar + nominal_dipindah`. `terbayar` tidak diubah lewat edit. Perubahan uang yang sudah masuk memakai pembayaran balik.
+| Aksi | Siapa | Catatan |
+|---|---|---|
+| Menambah invoice | Super Admin, `auditor_finansial` | `TAGIHAN` baru dengan nomor dari sequence. `terbayar` mulai dari 0 dan `sisa` sama dengan `nominal`. Periode penuh memakai tipe `langganan` dan mematuhi kunci unik `(pelanggan_id, tipe_tagihan, layanan_mulai)`. Biaya di luar periode memakai tipe `manual`. |
+| Mengubah nominal | Super Admin, `auditor_finansial` | Nominal diubah lewat `BARIS_TAGIHAN`, karena `nominal` adalah jumlah baris. `sisa` dihitung ulang. `periode_penuh` tidak berubah. |
+| Mengubah jatuh tempo | Super Admin, Admin Global | Pada `tanggal_tetap`, perubahan ini menggeser tanggal isolir dan memanggil `hitung_isolir_berikutnya`. Kolektor tidak mengubah jatuh tempo. Kolektor mengajukan penundaan. |
+| Mengubah keterangan | Super Admin, Admin Global, `auditor_finansial` | Tidak mengubah uang atau jadwal. |
+| Membatalkan | Super Admin, `auditor_finansial` | Status menjadi `batal`. Baris tetap ada dan halaman `public_token` menampilkan tagihan dibatalkan. |
+| Menghapus | Super Admin, `auditor_finansial` | Invoice dan baris tagihannya hilang dari tabel. Nomor yang sudah terbit tidak dipakai ulang. |
 
-Menghapus menghilangkan invoice dari tabel, bersama baris tagihannya. Nomor yang sudah terbit tidak dipakai ulang. Hapus ditolak bila `terbayar` masih lebih dari 0. Bila invoice harus tetap tercatat, gunakan edit, bukan hapus.
+Status tidak diedit langsung. Status berubah hanya lewat `alokasi_pembayaran`, pembayaran balik, verifikasi bukti, dan aksi membatalkan. Setiap aksi yang mengubah tagihan `langganan` memanggil `hitung_isolir_berikutnya` di transaksi yang sama.
 
 ---
 
@@ -599,6 +609,7 @@ flowchart TD
   1. **[🚪 Rumah Kosong / Tidak Ketemu]** $\rightarrow$ status otomatis menjadi `didatangi_belum_ketemu` + rekam GPS & jam kunjungan.
   2. **[⏳ Belum Bayar / Minta Datang Lagi]** $\rightarrow$ input catatan alasan (misal: "gajian tgl 25") $\rightarrow$ status menjadi `didatangi_belum_bayar`.
   3. **[📝 Pengajuan Perpanjangan 1 Bulan]** masuk antrean Admin Global. Persetujuan menulis satu baris `JENDELA_PENUNDAAN` dengan `alasan = perpanjangan` dan `batas` 30 hari sejak tanggal setuju, lalu `next_isolir` dihitung ulang. Bila pelanggan sedang putus oleh scheduler, `nyalakan_layanan` dipanggil.
+  4. **[Pengajuan Penundaan Isolir]** untuk toleransi sementara. Kolektor mengisi tanggal batas dan alasan. Pengajuan masuk antrean Admin Global sebagai `PENGAJUAN_PENUNDAAN`. Persetujuan menulis satu baris `JENDELA_PENUNDAAN` dengan `alasan = toleransi`. Kolektor tidak dapat mengedit jatuh tempo tagihan.
 
 ---
 
@@ -1122,7 +1133,7 @@ Gaji, pencairan komisi reseller, dan belanja operasional yang dibayar dari reken
 | Konfigurasi | Keterangan |
 |---|---|
 | **Manual Maintenance Mode (Super Admin)** | **Tombol Saklar Pemeliharaan Sistem:** Super Admin dapat mengaktifkan / menonaktifkan *Maintenance Mode* langsung dari dashboard web (tanpa perlu login SSH terminal):<br>• **Pesan Kustom:** Admin dapat mengetik pesan pengumuman (contoh: *"Sedang ada pemeliharaan server database hingga pukul 02:00 WIB. Layanan internet pelanggan tetap aktif normal"*).<br>• **Akses Khusus (Bypass):** Super Admin tetap bisa mengakses seluruh menu dashboard selama mode pemeliharaan aktif.<br>• **Tampilan Pengguna:** Kolektor dan Pelanggan yang membuka web/portal akan melihat halaman status pemeliharaan resmi yang elegan dan informatif. |
-| **Paket Layanan** | CRUD paket langganan (nama, harga nominal Rp, kecepatan upload/download). |
+| **Paket Layanan** | CRUD paket langganan: nama, harga bawaan dalam rupiah, dan catatan kecepatan. Harga per desa atau dusun diatur di `HARGA_PAKET_WILAYAH`. Perubahan harga mencatat siapa, kapan, serta nilai sebelum dan sesudah di audit. Kecepatan tidak disinkronkan ke queue Mikrotik. |
 | **Siklus & Tanggal Tagihan** | Hari generate invoice bulanan otomatis untuk `tanggal_tetap` dan tanggal jatuh tempo default (tanggal 11 pukul 00:00). Isolir `tanggal_tetap` mengikuti jatuh tempo ini. Periode `prabayar` tetap 30 hari kalender. |
 | **Toleransi Isolir Global** | Pengaturan default pelanggan baru: `batas_tunggakan = 2` dan `siklus_tagihan = tanggal_tetap`. |
 | **Verifikasi bukti transfer** | `wajib_verifikasi_transfer`, bawaan `tidak_wajib`. Hanya Super Admin yang mengubahnya. |
@@ -1246,6 +1257,8 @@ erDiagram
         text last_active_note
         datetime tanggal_daftar
         string tanda_transfer
+        bool tidak_tertib
+        text catatan_tidak_tertib
     }
 
     PERANGKAT_INVENTARIS {
@@ -1387,8 +1400,16 @@ erDiagram
     PAKET {
         bigint id
         string nama
+        bigint harga "harga bawaan"
+        string kecepatan "catatan"
+    }
+
+    HARGA_PAKET_WILAYAH {
+        bigint id
+        bigint paket_id
+        bigint desa_id
+        bigint dusun_id
         bigint harga
-        string kecepatan
     }
 
     TAGIHAN {
@@ -1430,7 +1451,6 @@ erDiagram
         int hari
         bigint nominal
         string arah
-        bigint saldo_akhir
         string status
         bigint ditutup_oleh
         datetime ditutup_pada
@@ -1541,8 +1561,23 @@ erDiagram
         date batas
         bigint dibuat_oleh
         bigint disetujui_oleh
+        bigint pengajuan_penundaan_id
         text keterangan
         datetime created_at
+    }
+
+    PENGAJUAN_PENUNDAAN {
+        bigint id
+        bigint pelanggan_id
+        string alasan "toleransi, bypass, perpanjangan"
+        date batas_diminta
+        text keterangan
+        bigint diajukan_oleh
+        string status "menunggu, disetujui, ditolak"
+        bigint diproses_oleh
+        text alasan_tolak
+        datetime created_at
+        datetime diproses_pada
     }
 
     LOG_API_MIKROTIK {
@@ -1727,6 +1762,7 @@ erDiagram
     RESELLER ||--o{ PENCAIRAN_RESELLER : "mengajukan"
     MIKROTIK ||--o{ PELANGGAN_MIKROTIK : "menampung"
     PELANGGAN }o--|| PAKET : "berlangganan"
+    PAKET ||--o{ HARGA_PAKET_WILAYAH : "harga per lokasi"
     PELANGGAN ||--o{ TAGIHAN : "punya"
     PELANGGAN ||--o{ HUTANG_MENGENDAP : "punya catatan evaluasi"
     PELANGGAN ||--o{ RIWAYAT_SUSPEND : "punya riwayat suspend"
@@ -1739,6 +1775,8 @@ erDiagram
     PELANGGAN ||--o{ RIWAYAT_ISOLIR : "punya periode putus"
     PELANGGAN ||--o{ JENDELA_PENUNDAAN : "punya penundaan"
     JENDELA_PENUNDAAN ||--o{ RIWAYAT_ISOLIR : "menyalakan"
+    PELANGGAN ||--o{ PENGAJUAN_PENUNDAAN : "diajukan untuk"
+    PENGAJUAN_PENUNDAAN ||--o| JENDELA_PENUNDAAN : "disetujui menjadi"
     PELANGGAN ||--o{ LOG_API_MIKROTIK : "tercatat"
     MIKROTIK ||--o{ LOG_API_MIKROTIK : "dicatat dari"
     PERANGKAT_INVENTARIS }o--o| USERS : "dibawa oleh"
@@ -1759,6 +1797,7 @@ Kendala unik pada tabel:
 - `TAGIHAN`: `(pelanggan_id, tipe_tagihan, layanan_mulai)` untuk tagihan yang statusnya bukan `batal`, `no_tagihan`, dan `public_token`. PostgreSQL memakai partial unique index. MySQL memerlukan kolom generated yang bernilai null untuk tagihan `batal`. `tipe_tagihan` berisi `langganan`, `prorata`, `biaya_pasang`, `konversi`, atau `manual`.
 - `PELANGGAN`: `dusun_id` wajib terisi bila `status_langganan` bukan `menunggu_verifikasi_pusat`, dijaga `CHECK` constraint. `paid_through` wajib terisi bila `siklus_tagihan = prabayar` dan `tanggal_instalasi` terisi.
 - `HUTANG_MENGENDAP`: baris hitungan otomatis unik pada `(pelanggan_id, jenis, tanggal_mulai)`. Satu `sumber_id` hanya satu baris konversi.
+- `HARGA_PAKET_WILAYAH`: tepat satu dari `desa_id` dan `dusun_id` terisi, dijaga `CHECK` constraint. Unik pada `(paket_id, desa_id)` dan `(paket_id, dusun_id)`.
 - `PEMBAYARAN`: `idempotency_key`, serta `gateway_transaction_id` bila terisi
 - `PERIODE_KAS`: `(user_id, periode)`
 - `RIWAYAT_ISOLIR`: satu baris dengan `nyala_kembali` kosong per pelanggan
