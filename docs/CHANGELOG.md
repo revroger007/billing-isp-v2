@@ -2,6 +2,7 @@
 
 ## 2026-11-07
 
+- Saldo mengendap dan tagihan dapat dikonversi dua arah. Catatan asal tetap ada. Konversi ke tagihan mengurangi saldo. Konversi dari tagihan menambah saldo.
 - Bukti transfer bawaan langsung `lunas` dengan tanda `belum_diverifikasi`. Mode wajib, tanda pelanggan, atau kolektor level 2 menahan status `menunggu_verifikasi`.
 - Prorata, diskon, biaya aktivasi, dan prorata aktivasi prabayar masuk `HUTANG_MENGENDAP`, bukan invoice. Saldo itu untuk evaluasi dan tidak menjadi piutang.
 - Koreksi buku tagihan, kas, invoice, dan bukti transfer memakai izin `koreksi_keuangan`. Auditor finansial ditunjuk Super Admin. Admin Wilayah menerima izin itu dari pusat.

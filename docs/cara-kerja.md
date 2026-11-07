@@ -1,6 +1,6 @@
 # 🌐 Rancangan Aplikasi Billing Internet — Microprovider / Mini ISP
 
-> Versi: 2.15 — Tahap 1: Definisi Fitur
+> Versi: 2.16 — Tahap 1: Definisi Fitur
 > Tanggal: 7 November 2026
 
 Keputusan yang mengunci uang, isolir, peran, dan batas tahap awal ada di `docs/decisions/001-keputusan-review-spesifikasi.md`. Jika kalimat di bawah berbeda dengan keputusan itu, keputusan yang dipakai.
@@ -131,23 +131,31 @@ Prorata cuti, prorata aktivasi, biaya aktivasi, prorata aktivasi prabayar, dan d
 
 Periode layanan yang penuh tetap menjadi tagihan. Bila invoice periode itu sudah terbit lalu peristiwanya membuat periode tidak penuh, invoice itu menjadi `batal` dalam transaksi yang sama dengan pembuatan catatan. Uang yang sudah masuk di atas invoice yang dibatalkan kembali ke dompet.
 
-Rumus catatan memakai pembagian integer yang sama. Satu pelanggan, satu jenis, dan satu `tanggal_mulai` hanya boleh satu baris.
+Rumus catatan memakai pembagian integer yang sama. Baris hitungan otomatis unik per pelanggan, jenis, dan `tanggal_mulai`. Setiap baris menyimpan `arah` (`masuk` atau `keluar`) dan `saldo_akhir`. Saldo mengendap pelanggan adalah `saldo_akhir` baris terbaru. Baris lama tidak diubah.
 
-Status catatan adalah `mengendap` atau `didiskon`. Keduanya tetap masuk saldo mengendap. Saldo itu adalah jumlah nominal seluruh catatan pelanggan, untuk evaluasi, bukan piutang. Isolir tidak membaca saldo ini.
+Status `mengendap` dan `didiskon` sama-sama tetap di dalam saldo. Diskon hanya mengubah status dan alasan. Isolir tidak membaca saldo mengendap.
 
-Pemegang `koreksi_keuangan` dapat menandai `didiskon` beserta alasan. Baris tidak dihapus. Profil pelanggan menampilkan riwayat dan saldo mengendap.
+Pemegang `koreksi_keuangan` dapat menandai `didiskon`, mengonversi saldo menjadi tagihan, atau mengonversi sisa tagihan menjadi saldo mengendap. Admin Wilayah hanya untuk dusun di `user_wilayah`. Alasan wajib. Satu sumber hanya boleh dikonversi satu kali.
+
+Konversi saldo menjadi tagihan menambah baris `keluar` sebesar nominal sumber. Catatan sumber tetap ada. `saldo_akhir` berkurang. Sistem membuat `TAGIHAN` bertipe `konversi`, status `belum_bayar`, dan nominal yang sama. Tagihan itu dihitung tunggakan dan dapat ditagih.
+
+Konversi tagihan menjadi saldo memindahkan `sisa` yang belum dibayar. Bila belum ada pembayaran, tagihan menjadi `batal` dan satu baris `masuk` menambah saldo sebesar sisa itu. Bila sudah ada pembayaran, `nominal` tagihan diturunkan menjadi `terbayar`, statusnya `lunas`, dan sisa yang dipindahkan masuk ke saldo mengendap. Uang yang sudah masuk tidak ikut pindah.
 
 Contoh pelanggan A. Cuti mulai 12 November. Hitungan hari sebelum cuti adalah Rp30.000.
 
 ```
-Invoice November     tidak terbit, atau batal bila sudah terbit
-Catatan              prorata_cuti, 12 November, Rp30.000
-Status               mengendap
-Hutang tagihan       tidak bertambah
-Saldo mengendap      Rp30.000
+12 Nov  prorata_cuti masuk     30.000   saldo 30.000
 ```
 
-Bila auditor mendiskon catatan itu, status menjadi `didiskon` dan alasannya tersimpan. Rp30.000 tetap di saldo mengendap dan tetap bukan hutang. Bila pelanggan A mengulang pola yang sama, profil menampilkan tiap kejadian dan saldo yang bertambah, sehingga pola mengambil beberapa hari tanpa tagihan tetap terlihat.
+Invoice November tidak terbit. Hutang tagihan tidak bertambah. Bila catatan itu dikonversi menjadi tagihan:
+
+```
+12 Nov  prorata_cuti masuk        30.000   saldo 30.000
+15 Nov  konversi_ke_tagihan keluar 30.000   saldo 0
+Tagihan konversi                         30.000   belum_bayar
+```
+
+Catatan 12 November tetap ada. Saldo mengendap menjadi 0. Rp30.000 kini hutang tagihan. Bila tagihan itu dikembalikan ke saldo mengendap, tagihan menjadi `batal` dan saldo bertambah lagi Rp30.000. Profil menampilkan seluruh baris.
 
 #### Hari yang tidak ditagihkan
 
@@ -1362,11 +1370,14 @@ erDiagram
         date tanggal_selesai
         int hari
         bigint nominal
+        string arah
+        bigint saldo_akhir
         string status
         bigint didiskon_oleh
         datetime didiskon_pada
         text alasan
-        bigint tagihan_batal_id
+        bigint tagihan_id
+        bigint sumber_id
         datetime dibuat_pada
     }
 
@@ -1663,7 +1674,7 @@ erDiagram
 Kendala unik pada tabel:
 
 - `TAGIHAN`: `(pelanggan_id, tipe_tagihan, layanan_mulai)`, `no_tagihan`, dan `public_token`
-- `HUTANG_MENGENDAP`: `(pelanggan_id, jenis, tanggal_mulai)`
+- `HUTANG_MENGENDAP`: baris hitungan otomatis unik pada `(pelanggan_id, jenis, tanggal_mulai)`. Satu `sumber_id` hanya satu baris konversi.
 - `PEMBAYARAN`: `idempotency_key`, serta `gateway_transaction_id` bila terisi
 - `PERIODE_KAS`: `(user_id, periode)`
 - `RIWAYAT_ISOLIR`: satu baris dengan `nyala_kembali` kosong per pelanggan
