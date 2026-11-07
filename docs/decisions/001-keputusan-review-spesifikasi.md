@@ -47,5 +47,6 @@ Versi 0.3 cara kerja dan versi 1.2 logika isolir memakai tiga default isolir, sa
 - SNMP OLT adalah cadangan aktif bila `snmp_supported` benar. Callback gateway dan webhook pemantauan ditolak sebelum transaksi bila tanda atau sumber tidak sah.
 - Perubahan WiFi dan reboot modem menunggu NOC. Password ajuan terenkripsi dan tidak masuk teks audit. Google tidak membuat akun pelanggan. Admin wilayah hanya menyetujui pembayaran pada dusunnya bila memegang `koreksi_keuangan`.
 - Koreksi tagihan, kas, invoice, dan bukti transfer pelanggan hanya untuk Super Admin, Admin Global, `auditor_finansial` yang ditunjuk Super Admin, dan Admin Wilayah yang diberi izin oleh pusat.
+- Verifikasi bukti transfer bawaan `tidak_wajib`: tagihan langsung `lunas`, pembayaran bertanda `belum_diverifikasi`. Mode `wajib`, `tanda_transfer` pada pelanggan, atau kolektor level 2 menahan tagihan di `menunggu_verifikasi`.
 
-`docs/cara-kerja.md` versi 2.14 dan `docs/logika-isolir.md` versi 2.12 mengikuti keputusan ini. Perubahan berikutnya dicatat sebagai keputusan baru, bukan dengan menghidupkan kalimat lama.
+`docs/cara-kerja.md` versi 2.15 dan `docs/logika-isolir.md` versi 2.13 mengikuti keputusan ini. Perubahan berikutnya dicatat sebagai keputusan baru, bukan dengan menghidupkan kalimat lama.

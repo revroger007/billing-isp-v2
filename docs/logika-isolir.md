@@ -1,6 +1,6 @@
 # Spesifikasi Logika Isolir
 
-> Versi: 2.12 | Tanggal: 7 November 2026
+> Versi: 2.13 | Tanggal: 7 November 2026
 > Sistem: pra-bayar
 > Mekanisme: IP statis dimasukkan ke address-list Mikrotik. Semua pelanggan memakai IP statis. Kolom `tipe_koneksi` hanya catatan teknis dan tidak mengubah cara isolir.
 
@@ -46,7 +46,7 @@ Job isolir membandingkan tanggal kalender Jakarta, bukan tanggal UTC.
 
 Hanya tagihan `tipe_tagihan = langganan` yang tanggal jatuh temponya sudah sampai. Biaya pasang, denda, invoice manual, dan hutang mengendap tidak dihitung dan tidak memperpanjang siklus `prabayar`. Bulan yang tidak diterbitkan tidak dihitung lunas dan tidak menyalakan layanan.
 
-Satu tagihan dihitung tunggakan bila statusnya `belum_bayar`, `sebagian`, atau `menunggu_verifikasi`. Status `sebagian` tetap satu tunggakan sampai `sisa = 0`. Unggah bukti tidak menyalakan layanan.
+Satu tagihan dihitung tunggakan bila statusnya `belum_bayar`, `sebagian`, atau `menunggu_verifikasi`. Status `sebagian` tetap satu tunggakan sampai `sisa = 0`. Bukti transfer pada mode `tidak_wajib` membuat tagihan `lunas` dan dapat menyalakan layanan. Mode `wajib`, tanda pelanggan, atau kolektor level 2 membuat status `menunggu_verifikasi` dan belum menyalakan layanan.
 
 ## Siklus tanggal_tetap
 

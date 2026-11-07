@@ -1,6 +1,6 @@
 # 🌐 Rancangan Aplikasi Billing Internet — Microprovider / Mini ISP
 
-> Versi: 2.14 — Tahap 1: Definisi Fitur
+> Versi: 2.15 — Tahap 1: Definisi Fitur
 > Tanggal: 7 November 2026
 
 Keputusan yang mengunci uang, isolir, peran, dan batas tahap awal ada di `docs/decisions/001-keputusan-review-spesifikasi.md`. Jika kalimat di bawah berbeda dengan keputusan itu, keputusan yang dipakai.
@@ -180,10 +180,25 @@ Menyimpan tagihan, catatan mengendap, dan pembayaran tetap lewat aksi yang terpi
 | Metode | Alur Verifikasi | Eksekusi Buka Isolir |
 |---|---|---|
 | **Cash (Kasir, Admin, Kolektor)** | Langsung tercatat atas nama user yang menerima uang. Nominal masuk ke periode kas orang itu. Titik GPS disimpan sebagai catatan lokasi, bukan sebagai satu-satunya pengendali. Setiap simpan memakai `idempotency_key` supaya klik ganda tidak membuat dua pembayaran. | Isolir scheduler dibuka hanya bila syarat putus tidak terpenuhi. Isolir manual tidak terbuka karena pembayaran. |
-| **Transfer Manual (Pelanggan)** | Pelanggan mengunggah bukti. Status tagihan menjadi `menunggu_verifikasi` dan tetap dihitung tunggakan. | Setelah pemegang `koreksi_keuangan` menyetujui. Admin Wilayah hanya untuk dusun di `user_wilayah`. Syarat putus dihitung ulang. |
-| **Transfer Manual (Admin)** | Pemegang `koreksi_keuangan` mengunggah bukti. Tagihan langsung `lunas`. Admin Wilayah tanpa izin itu hanya dapat menyimpan bukti sebagai `menunggu_verifikasi`. | Syarat putus dihitung ulang. Putus manual tidak ikut terbuka. |
+| **Transfer Manual (Pelanggan)** | Pelanggan mengunggah bukti. Hasil lunas atau menunggu mengikuti saklar verifikasi di bawah. | Syarat putus dihitung ulang hanya bila tagihan menjadi `lunas`. |
+| **Transfer Manual (Admin)** | Pemegang `koreksi_keuangan` mengunggah bukti. Tagihan langsung `lunas`, dengan tanda bukti `belum_diverifikasi` sampai diperiksa. Admin Wilayah tanpa izin itu menyimpan bukti sebagai `menunggu_verifikasi`. | Syarat putus dihitung ulang. Putus manual tidak ikut terbuka. |
 | **Transfer Manual (Kolektor)** | Mengikuti level wewenang kolektor. Bukti wajib. | Sama dengan level kolektor, dan tetap menunggu syarat putus. |
 | **Payment Gateway (API)** | Adapter disiapkan untuk gateway yang dipilih nanti. Callback ditolak sebelum transaksi database bila signature, waktu, atau sumber tidak sah. Callback yang lolos dan membawa `gateway_transaction_id` yang sudah ada tidak membuat pembayaran baru. | Setelah lunas dan syarat putus tidak terpenuhi. |
+
+#### Verifikasi bukti transfer
+
+Pengaturan global `wajib_verifikasi_transfer` diubah hanya oleh Super Admin. Nilai bawaan adalah `tidak_wajib`.
+
+| Mode | Setelah bukti terunggah | Tanda pada pembayaran |
+|---|---|---|
+| `tidak_wajib` | Tagihan menjadi `lunas`. | `belum_diverifikasi` |
+| `wajib` | Tagihan menjadi `menunggu_verifikasi` dan tetap tunggakan. | `belum_diverifikasi` |
+
+Pelanggan dapat ditandai `tanda_transfer`: `sering_salah_bukti` atau `bukti_palsu`. Tanda itu hanya dipasang atau dicabut oleh pemegang `koreksi_keuangan`. Admin Wilayah hanya pada dusun di `user_wilayah`. Pelanggan yang bertanda selalu memakai mode `wajib`, walaupun pengaturan global `tidak_wajib`. Kolektor level 2 juga selalu menunggu verifikasi. Kolektor level 3 mengikuti mode yang berlaku untuk pelanggan itu.
+
+Tanda pada pembayaran transfer hanya tiga nilai: `belum_diverifikasi`, `sudah_diverifikasi`, dan `ditolak`. Tanda itu tampil di daftar pembayaran, di invoice admin, dan di profil pelanggan. Pembayaran tunai tidak memakai tanda ini.
+
+Pemegang `koreksi_keuangan` mengubah tanda menjadi `sudah_diverifikasi` atau `ditolak`. Persetujuan pada tagihan `menunggu_verifikasi` sekaligus membuat tagihan `lunas`. Penolakan pada tagihan yang sudah `lunas` membuat pembayaran balik dan mengembalikan sisa tagihan. Alasan penolakan wajib diisi.
 
 ---
 
@@ -391,7 +406,7 @@ Verifikasi dan koreksi buku tagihan, kas, invoice, dan bukti transfer pelanggan 
 
 | Aksi | Yang ditulis |
 |---|---|
-| Setujui atau tolak bukti transfer | Status tagihan berubah dari `menunggu_verifikasi`. Tolak mengembalikan status bayar sebelumnya dan menyimpan alasan. |
+| Setujui atau tolak bukti transfer | Tanda pembayaran menjadi `sudah_diverifikasi` atau `ditolak`. Tolak pada tagihan yang sudah lunas menulis pembayaran balik. |
 | Koreksi invoice | Nominal, status, atau jatuh tempo berubah dengan nilai sebelum dan sesudah. `sisa` dihitung ulang dari `nominal - terbayar`. |
 | Koreksi pembayaran | Pembatalan memakai `reverses_id` pada `PEMBAYARAN` baru. Baris lama tidak dihapus. |
 | Koreksi kas | Baris `MUTASI_KAS` baru berjenis `koreksi` pada periode yang masih terbuka. `saldo_akhir` baris lama tidak ditulis ulang. |
@@ -1052,6 +1067,7 @@ flowchart LR
 | **Paket Layanan** | CRUD paket langganan (nama, harga nominal Rp, kecepatan upload/download). |
 | **Siklus & Tanggal Tagihan** | Hari generate invoice bulanan otomatis & tanggal jatuh tempo default (tanggal 11 pukul 00:00). |
 | **Toleransi Isolir Global** | Pengaturan default pelanggan baru: `batas_tunggakan = 2` dan `siklus_tagihan = tanggal_tetap`. |
+| **Verifikasi bukti transfer** | `wajib_verifikasi_transfer`, bawaan `tidak_wajib`. Hanya Super Admin yang mengubahnya. |
 | **Template Cetak Kuitansi** | Pemilihan model kuitansi default (Thermal Bluetooth 58mm/80mm) dan teks kop/footer. |
 | **Integrasi notifikasi** | SMTP email dan token bot Telegram. Tidak ada API key gateway WhatsApp untuk pesan otomatis ke pelanggan. |
 | **Integrasi & Kredensial Server ACS (GenieACS)** | Form input URL NBI (`http://ip:7557`), username/password atau API Key token, timeout socket (default 3 detik), dan tombol **`[🔌 Uji Koneksi API ACS]`**. Menyimpan riwayat status health check live. |
@@ -1189,6 +1205,7 @@ erDiagram
         date cuti_selesai
         datetime tanggal_daftar
         text penundaan_catatan
+        string tanda_transfer
     }
 
     PERANGKAT_INVENTARIS {
@@ -1361,6 +1378,7 @@ erDiagram
         bigint user_id
         string bukti_transfer
         string status_verifikasi
+        string status_bukti
         string idempotency_key
         string gateway_transaction_id
         string kanal
