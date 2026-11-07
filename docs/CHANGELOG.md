@@ -2,7 +2,7 @@
 
 ## 2026-11-07
 
-- Saldo `didiskon` tidak dapat dijadikan tagihan. Hanya Super Admin yang mengonversi saldo mengendap menjadi tagihan.
+- Saldo mengendap yang ditutup berstatus `closed`. Saldo tidak berkurang. Baris `closed` tidak dapat menjadi tagihan. Hanya Super Admin dan `auditor_finansial` yang dapat membuka serta mengonversinya.
 - Saldo mengendap dan tagihan dapat dikonversi dua arah. Catatan asal tetap ada. Konversi ke tagihan mengurangi saldo. Konversi dari tagihan menambah saldo.
 - Bukti transfer bawaan langsung `lunas` dengan tanda `belum_diverifikasi`. Mode wajib, tanda pelanggan, atau kolektor level 2 menahan status `menunggu_verifikasi`.
 - Prorata, diskon, biaya aktivasi, dan prorata aktivasi prabayar masuk `HUTANG_MENGENDAP`, bukan invoice. Saldo itu untuk evaluasi dan tidak menjadi piutang.
