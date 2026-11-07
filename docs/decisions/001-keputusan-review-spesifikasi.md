@@ -19,14 +19,14 @@ Versi 0.3 cara kerja dan versi 1.2 logika isolir memakai tiga default isolir, sa
 - Bonus teknisi tidak timbul dari tiket yang tertutup karena agenda massal.
 - Failover server, replikasi database, dan restore SQL adalah prosedur infrastruktur, bukan modul aplikasi.
 - Impor pelanggan lama memakai `isolir_mulai_evaluasi`. Mutasi uang yang dibatalkan menulis jurnal balik.
-- Cuti tidak menagih tanggal cuti. Tagihan periode berjalan dipotong sampai sehari sebelum `cuti_mulai`. Aktif kembali di tengah bulan membuat tagihan prorata tersendiri sampai akhir bulan, dan tagihan itu masuk tunggakan.
+- Cuti tidak menagih tanggal cuti. Prorata, diskon, biaya aktivasi, dan prorata aktivasi prabayar dicatat sebagai hutang mengendap, bukan invoice dan bukan piutang.
 - Tagihan langganan hanya menghitung hari layanan. Hari cuti dan hari `putus` tidak ditagih, sehingga bulan kosong tidak punya kuitansi.
 - `isolir_ditunda_hingga` menggantikan `isolir_sementara` dan `bypass_until`. Alasan berisi `toleransi` atau `bypass`. Pembayaran satu bulan saat toleransi mengembalikan jadwal ke `hari_isolir` pada semua siklus.
 - Satu tagihan langganan yang sudah lewat jatuh tempo memutus pelanggan dengan `batas_tunggakan = 1`, termasuk tagihan bulan lain.
-- Bulan tanpa hari layanan tidak punya tagihan dan tidak punya kuitansi. Aktivasi kembali di tengah bulan membuat tagihan prorata sampai akhir bulan. Tidak adanya tagihan tidak membuka isolir.
+- Bulan tanpa hari layanan tidak punya tagihan dan tidak punya kuitansi. Aktivasi di tengah periode menambah hutang mengendap, bukan tagihan. Tidak adanya tagihan tidak membuka isolir.
 - Tombol simulasi admin menjumlahkan sisa tunggakan dan prorata aktivasi tanpa menyimpan apa pun.
 - Tanggal 1: generate tagihan dan autopay mulai pukul 00:01. Job isolir tanggal 1 berjalan setelah autopay commit. Hari lain, isolir pukul 00:05. `N` hanya jumlah tagihan langganan yang menjadi lunas.
-- Nominal tagihan dipotong hanya saat `status_layanan` menjadi `putus`, dalam transaksi yang sama. Nyala layanan memakai antrean satu sesi per router dengan prioritas tinggi.
+- Invoice periode yang tidak lagi penuh menjadi `batal` saat cuti, aktivasi, atau putus. Nilai prorata masuk hutang mengendap. Nyala layanan memakai antrean satu sesi per router dengan prioritas tinggi.
 - `riwayat_isolir` menyimpan periode putus sampai nyala per pelanggan. `log_api_mikrotik` tetap menyimpan percobaan API per router.
 - Komentar address-list isolir adalah nomor pelanggan lalu nama. Nomor pelanggan tidak dipotong. Nama yang tidak muat dipotong pada batas 128 karakter.
 - Seribu isolir pada hari yang sama tidak membuka seribu koneksi. Satu Mikrotik satu sesi API, 50 entri, jeda 1 detik. Nyala layanan dari pembayaran didahulukan.
@@ -41,11 +41,11 @@ Versi 0.3 cara kerja dan versi 1.2 logika isolir memakai tiga default isolir, sa
 - Satu `PEMBAYARAN` memiliki banyak `ALOKASI_PEMBAYARAN`. `idempotency_key` unik per penerimaan.
 - `tidak_serempak` menyalakan layanan bila syarat putus gugur dan sumber putus bukan manual.
 - Persetujuan perpanjangan satu bulan menulis `isolir_ditunda_hingga`. Label VIP tidak menunda isolir.
-- Potongan tagihan memakai `hari_mulai_putus`. Prorata dan komisi memakai pembagian integer. Komisi memakai `basis_poin`.
+- `hari_mulai_putus` menentukan catatan diskon isolir. Prorata dan komisi memakai pembagian integer. Komisi memakai `basis_poin`. Hutang mengendap bukan piutang.
 - `PELANGGAN` menyimpan `tanggal_daftar` dan `penundaan_catatan`. `status_langganan` terpisah dari `status_layanan`.
 - `LOG_API_MIKROTIK` menyimpan `status_api`, `jumlah_percobaan`, `jumlah_tunggakan`, dan salinan `isolir_berikutnya`.
 - SNMP OLT adalah cadangan aktif bila `snmp_supported` benar. Callback gateway dan webhook pemantauan ditolak sebelum transaksi bila tanda atau sumber tidak sah.
 - Perubahan WiFi dan reboot modem menunggu NOC. Password ajuan terenkripsi dan tidak masuk teks audit. Google tidak membuat akun pelanggan. Admin wilayah hanya menyetujui pembayaran pada dusunnya bila memegang `koreksi_keuangan`.
 - Koreksi tagihan, kas, invoice, dan bukti transfer pelanggan hanya untuk Super Admin, Admin Global, `auditor_finansial` yang ditunjuk Super Admin, dan Admin Wilayah yang diberi izin oleh pusat.
 
-`docs/cara-kerja.md` versi 2.13 dan `docs/logika-isolir.md` versi 2.11 mengikuti keputusan ini. Perubahan berikutnya dicatat sebagai keputusan baru, bukan dengan menghidupkan kalimat lama.
+`docs/cara-kerja.md` versi 2.14 dan `docs/logika-isolir.md` versi 2.12 mengikuti keputusan ini. Perubahan berikutnya dicatat sebagai keputusan baru, bukan dengan menghidupkan kalimat lama.

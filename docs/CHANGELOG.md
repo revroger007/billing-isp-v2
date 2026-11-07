@@ -2,6 +2,7 @@
 
 ## 2026-11-07
 
+- Prorata, diskon, biaya aktivasi, dan prorata aktivasi prabayar masuk `HUTANG_MENGENDAP`, bukan invoice. Saldo itu untuk evaluasi dan tidak menjadi piutang.
 - Koreksi buku tagihan, kas, invoice, dan bukti transfer memakai izin `koreksi_keuangan`. Auditor finansial ditunjuk Super Admin. Admin Wilayah menerima izin itu dari pusat.
 - Buku admin kantor memakai `MUTASI_KAS`. Kolektor, admin PC, admin ponsel, dan kios memakai satu aksi `catat_pembayaran`.
 - `N` hanya dihitung dari tagihan yang menjadi lunas. Isolir tanggal 1 berjalan setelah autopay selesai.

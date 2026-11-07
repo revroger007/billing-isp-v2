@@ -1,6 +1,6 @@
 # Spesifikasi Logika Isolir
 
-> Versi: 2.11 | Tanggal: 7 November 2026
+> Versi: 2.12 | Tanggal: 7 November 2026
 > Sistem: pra-bayar
 > Mekanisme: IP statis dimasukkan ke address-list Mikrotik. Semua pelanggan memakai IP statis. Kolom `tipe_koneksi` hanya catatan teknis dan tidak mengubah cara isolir.
 
@@ -8,7 +8,7 @@ Aturan di dokumen ini mengalahkan diagram atau kalimat lama yang masih memakai `
 
 ## Dua pengaturan
 
-Isolir hanya memutus atau menyalakan layanan. Prorata dan kuitansi diatur di `docs/cara-kerja.md`. Tagihan langganan hanya menghitung hari layanan. Hari cuti dan hari `putus` tidak ditagih, sehingga bulan tanpa hari layanan tidak punya invoice dan tidak punya kuitansi.
+Isolir hanya memutus atau menyalakan layanan. Prorata, diskon, biaya aktivasi, dan prorata aktivasi prabayar diatur di `docs/cara-kerja.md` sebagai hutang mengendap. Jumlah itu tidak dihitung sebagai tunggakan. Tagihan langganan yang dihitung isolir adalah periode penuh. Bulan tanpa tagihan tidak punya kuitansi dan tidak membuka isolir.
 
 Pelanggan baru: `batas_tunggakan = 2`, `siklus_tagihan = tanggal_tetap`.
 
@@ -44,7 +44,7 @@ Job isolir membandingkan tanggal kalender Jakarta, bukan tanggal UTC.
 
 ## Status yang dihitung tunggakan
 
-Hanya tagihan `tipe_tagihan = langganan` yang tanggal jatuh temponya sudah sampai. Biaya pasang, denda, dan invoice manual tidak dihitung dan tidak memperpanjang siklus `prabayar`. Bulan yang tidak diterbitkan tidak dihitung lunas dan tidak menyalakan layanan.
+Hanya tagihan `tipe_tagihan = langganan` yang tanggal jatuh temponya sudah sampai. Biaya pasang, denda, invoice manual, dan hutang mengendap tidak dihitung dan tidak memperpanjang siklus `prabayar`. Bulan yang tidak diterbitkan tidak dihitung lunas dan tidak menyalakan layanan.
 
 Satu tagihan dihitung tunggakan bila statusnya `belum_bayar`, `sebagian`, atau `menunggu_verifikasi`. Status `sebagian` tetap satu tunggakan sampai `sisa = 0`. Unggah bukti tidak menyalakan layanan.
 
