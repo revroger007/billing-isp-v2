@@ -3,9 +3,10 @@
 ## 2026-11-07
 
 - Tunggakan isolir hanya tagihan penuh yang `terbayar = 0`. Biaya pasang masuk hutang mengendap. `status_langganan` menjadi `isolir` saat router benar-benar `putus`. Cuti hanya lewat satu baris `RIWAYAT_SUSPEND`.
-- Riwayat ping ada di Zabbix. Alert rumah digabung ke agenda induk yang sedang putus. Login perangkat tidak disalin ke dua tabel.
+- Data router pelanggan ada di `PERANGKAT_INVENTARIS`: SSID, password WiFi, IP perangkat, gateway, login standar, dan login superadmin. Tidak ada tabel `ROUTER_PELANGGAN`.
+- Riwayat ping ada di Zabbix. Alert rumah digabung ke agenda induk yang sedang putus.
 - Redaman tidak disimpan di database aplikasi. Cek live dan lapisan optik meminta angka saat dibuka. Riwayat naik-turun 7 hari dibuka dari profil pelanggan dan peta, dengan data diminta ke Zabbix. Webhook alert membuat tiket tanpa mengubah baris pelanggan.
-- Pelanggan dapat memiliki banyak router di `ROUTER_PELANGGAN`. Riwayat suspend ada di `RIWAYAT_SUSPEND`. Snapshot terakhir ada di `last_suspend` dan `last_active`. Scheduler membaca `next_isolir`.
+- Riwayat suspend ada di `RIWAYAT_SUSPEND`. Snapshot terakhir ada di `last_suspend` dan `last_active`. Scheduler membaca `next_isolir`.
 - Tagihan `konversi` dapat ditagih, tetapi tidak dihitung isolir dan tidak menambah `N`. Komisi reseller dan `N` transfer menunggu bukti `sudah_diverifikasi`.
 - Pengeluaran gaji, komisi, dan operasional dari laci menulis baris keluar pada `MUTASI_KAS`. Konversi saldo mengendap tidak menulis kas.
 - Super Admin dan `auditor_finansial` dapat menambah, mengedit, dan menghapus record saldo mengendap, serta membuat invoice dari record yang masih `mengendap`. Edit menyimpan nilai lama dan menghitung ulang saldo sesudahnya.
