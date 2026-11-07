@@ -1,6 +1,6 @@
 # 🌐 Rancangan Aplikasi Billing Internet — Microprovider / Mini ISP
 
-> Versi: 2.27 — Tahap 1: Definisi Fitur
+> Versi: 2.28 — Tahap 1: Definisi Fitur
 > Tanggal: 7 November 2026
 
 Keputusan yang mengunci uang, isolir, peran, dan batas tahap awal ada di `docs/decisions/001-keputusan-review-spesifikasi.md`. Jika kalimat di bawah berbeda dengan keputusan itu, keputusan yang dipakai.
@@ -801,6 +801,10 @@ Hasil cek live, grafik, dan balasan chat hanya tampil pada saat diminta. Tidak a
   2. **Cadangan per OLT:** OLT dengan `snmp_supported = true` langsung dipakai sebagai cadangan. OLT yang flag-nya false tidak di-query.
   3. **Human-Assisted Fallback:** Jika perangkat belum terhubung ke ACS dan OLT belum support SNMP, tombol bantuan cepat WhatsApp dan Chat Internal NOC selalu siap memfasilitasi komunikasi.
 
+##### 6. Riwayat naik-turun redaman
+
+Riwayat naik-turun redaman dibuka dari aplikasi ini, pada profil pelanggan dan pada popup peta. Saat grafik dibuka, aplikasi meminta deret angka ke Zabbix lewat `trend.get` untuk 7 hari terakhir, lalu menggambarnya. Permintaan itu tidak menulis database aplikasi: tidak ada tabel riwayat redaman dan tidak ada kolom di `PELANGGAN`. Portal pelanggan tidak menampilkan grafik ini. Bila Zabbix tidak menjawab, layar menampilkan bahwa riwayat sedang tidak tersedia. Modem tanpa ACS tetap dapat menampilkan riwayat bila Zabbix punya deret dari SNMP OLT untuk ONU itu.
+
 #### H. Widget Monitor Redaman Live di Layar Teknisi (*Self-Service Splicing Monitor*)
 Fitur revolusioner untuk memangkas komunikasi berulang antara teknisi tiang dan ruang NOC saat proses penyambungan kabel (*splicing*):
 
@@ -915,7 +919,7 @@ Peta GIS Leaflet.js di billing tidak hanya menampilkan sebaran lokasi geografis,
     * **`[📲 Minta Bantuan Cek (WA)]`**: 1-Klik membuka WhatsApp ke nomor NOC dengan pesan terformat otomatis lengkap (Nama, ID Pelanggan, OLT, Port PON, ONU ID, dan Alamat).
     * **`[📋 Salin Format Teks]`**: Menyalin teks instruksi permohonan cek redaman ke clipboard untuk dikirim manual lewat channel apapun.
     * **`[💬 Kirim ke Chat Internal NOC]`**: Mengirim permintaan data interaktif langsung ke panel Chat Internal NOC di dalam aplikasi billing.
-    * **`[📈 Riwayat Sinyal 7 Hari]`**: Menampilkan grafik 7 hari saat tombol ditekan. Angka ditarik dari Zabbix Trends API (`trend.get`) dan tidak ditulis ke database billing.
+    * **`[📈 Riwayat Sinyal 7 Hari]`**: Membuka grafik naik-turun 7 hari di aplikasi ini. Angka diminta ke Zabbix (`trend.get`) saat tombol ditekan dan tidak ditulis ke database aplikasi. Tombol yang sama ada di profil pelanggan.
     * **`[🎫 Buat Tiket Teknisi]`**: Langsung membuka form tiket terisi otomatis dengan koordinat dan nilai redaman yang drop.
 
 ---

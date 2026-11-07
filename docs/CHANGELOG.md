@@ -2,7 +2,7 @@
 
 ## 2026-11-07
 
-- Redaman tidak disimpan di `PELANGGAN`. Angka ditampilkan saat cek live, lapisan optik, atau grafik 7 hari diminta. Zabbix menyimpan riwayat dan mengirim alert. Webhook membuat tiket tanpa mengubah baris pelanggan.
+- Redaman tidak disimpan di database aplikasi. Cek live dan lapisan optik meminta angka saat dibuka. Riwayat naik-turun 7 hari dibuka dari profil pelanggan dan peta, dengan data diminta ke Zabbix. Webhook alert membuat tiket tanpa mengubah baris pelanggan.
 - Pelanggan dapat memiliki banyak router di `ROUTER_PELANGGAN`. Riwayat suspend ada di `RIWAYAT_SUSPEND`. Snapshot terakhir ada di `last_suspend` dan `last_active`. Scheduler membaca `next_isolir`.
 - Tagihan `konversi` dapat ditagih, tetapi tidak dihitung isolir dan tidak menambah `N`. Komisi reseller dan `N` transfer menunggu bukti `sudah_diverifikasi`.
 - Pengeluaran gaji, komisi, dan operasional dari laci menulis baris keluar pada `MUTASI_KAS`. Konversi saldo mengendap tidak menulis kas.
