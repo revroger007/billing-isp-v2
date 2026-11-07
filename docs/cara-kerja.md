@@ -1,7 +1,7 @@
 # 🌐 Rancangan Aplikasi Billing Internet — Microprovider / Mini ISP
 
-> Versi: 0.4 — Tahap 1: Definisi Fitur
-> Tanggal: 6 November 2026
+> Versi: 2.11 — Tahap 1: Definisi Fitur
+> Tanggal: 7 November 2026
 
 Keputusan yang mengunci uang, isolir, peran, dan batas tahap awal ada di `docs/decisions/001-keputusan-review-spesifikasi.md`. Jika kalimat di bawah berbeda dengan keputusan itu, keputusan yang dipakai.
 
@@ -14,7 +14,7 @@ flowchart TD
     subgraph SERVER["☁️ Billing Server (Central)"]
         APP["Aplikasi Billing\n(Laravel Core)"]
         DB[("Database\nPostgreSQL / MySQL")]
-        SCHEDULER["Job Scheduler & Queue Worker\n(Paralel multi-router)"]
+        SCHEDULER["Job Scheduler & Queue Worker\n(Satu sesi per router)"]
         FAILOVER_ROUTER["⚡ Smart Failover Connection Engine\n(Direct Cable First -> Fallback WireGuard)"]
     end
 
@@ -62,16 +62,16 @@ flowchart TD
 | **Hierarki Wilayah** | Pengelompokan administratif berjenjang: **Kecamatan $\rightarrow$ Desa/Kelurahan $\rightarrow$ Dusun/Dukuh** (opsional pada form awal). |
 | **Topologi Sumber Sambungan Fleksibel** | **Mengakomodasi Realita Lapangan RT/RW Net:** Pelanggan tidak dipaksa harus selalu dari tiang ODP resmi. Disediakan 4 pilihan sumber koneksi:<br>1. **ODP Tiang (Standar Fiber):** Tersambung ke tiang ODP resmi (pilih ODP dan Nomor Port).<br>2. **Splitter Rumah Tetangga (Sub-Splitter / Numpang):** Mengambil sinyal optik dari splitter kecil (misal ratio 1:2 atau 1:4) yang dititipkan di rumah tetangga terdekat (pilih nama tetangga *parent* & catatan posisi box di teras/atap).<br>3. **Estafet HTB / Switch LAN:** Pelanggan dicolok kabel LAN UTP dari media converter HTB / Switch Hub yang dititipkan di rumah warga atau tiang gang (pilih nama warga sumber HTB & port switch).<br>4. **Koneksi Langsung:** Ditarik langsung dari switch/router kantor pusat. |
 | **Peta Pohon Dependensi (*Parent-Child Tree*)** | **Kunci Diagnosa Gangguan:** Jika 3 rumah estafet HTB mati bersamaan, sistem langsung menandai bahwa sumber masalahnya berasal dari **titik rumah induk (parent)** yang mati lampu atau adaptor HTB-nya tercabut, bukan kabel jalanan yang putus! |
-| **Login Portal Pelanggan** | Mendukung login via: **Username, Email, No. HP, No. Pelanggan, atau Google OAuth (Google Login)** |
+| **Login Portal Pelanggan** | Username, email, nomor HP, dan nomor pelanggan. Google hanya menaut ke akun yang emailnya sudah sama dan tidak membuat akun pelanggan baru. |
 | **Data Kredensial & Teknis Modem** | **Rekam Data Teknis Lengkap per Pelanggan:**<br>• **User & Password PPPoE/Koneksi:** Username & Password sambungan internet.<br>• **Tipe & Merk Perangkat:** Misal: *ZTE F609 v3, Huawei HG8245H5, Fiberhome AN5506, VSOL V2801SG*.<br>• **Tanggal Instalasi:** Tanggal & jam resmi pemasangan perdana di rumah warga.<br>• **Foto Modem Pasca Instalasi:** Foto fisik modem terpasang rapi di dinding/meja pelanggan (bukti lampu indikator menyala & kerapian kabel).<br>• **SSID & Password WiFi:** Nama WiFi dan kata sandi pelanggan.<br>• **File Backup Config Modem:** Unggah/unduh file cadangan konfigurasi (`.xml` / `.cfg` / `.bin`) untuk *one-click restore* saat modem pelanggan diganti baru. |
 | **Login web perangkat WiFi** | Disimpan pada `PERANGKAT_INVENTARIS`, ikut berpindah bila modem diganti.<br>• **Login biasa:** `username_biasa` dan `password_biasa`. Teknisi boleh melihat saat perbaikan.<br>• **Super user:** `superadmin_username` dan `superadmin_password`. Hanya NOC dan Super Admin yang boleh melihat. Teknisi tidak menerima kolom ini lewat API.<br>SSID dan password WiFi tetap di data pelanggan. Itu nama jaringan, bukan login web modem. Kedua password perangkat disimpan terenkripsi. |
 | **Akses Teknisi Saat Perbaikan & Tombol WA** | **Kemudahan Teknisi di Lapangan:**<br>Saat menerima tiket servis/perbaikan, teknisi dapat langsung membuka tab data teknis (melihat SSID, password WiFi, merk alat, tanggal pasang, dan mengunduh file backup config).<br>• **Tombol `[📲 Hubungi Pelanggan via WA]`:** Satu sentuhan di HP teknisi langsung membuka chat WhatsApp ke pelanggan bersangkutan untuk konfirmasi janji temu atau laporan kedatangan. |
-| **Alur Request Penggantian SSID & Password WiFi** | **Prosedur Terverifikasi Anti-Salah Setting:**<br>1. **Pengajuan:** Admin Wilayah atau Teknisi di lapangan membuka form *Request Ubah WiFi* $\rightarrow$ input SSID Baru & Password Baru $\rightarrow$ status `menunggu_verifikasi_noc`.<br>2. **Validasi & Eksekusi NOC:** NOC memvalidasi permintaan, lalu mengeksekusi via API TR-069 GenieACS (atau konfigurasi manual).<br>3. **Pembaruan Otomatis:** Begitu NOC menekan **`[Verifikasi & Simpan]`**, data SSID & password baru otomatis tersimpan permanen di database pelanggan dan dicatat dalam riwayat perubahan. |
-| **Status Cuti** | Selama `cuti_mulai` sampai `cuti_selesai`, hari itu bukan hari layanan. Scheduler tidak memutus. Tidak ada biaya sewa port. Lihat bagian tagihan hari layanan. |
+| **Alur Request Penggantian SSID & Password WiFi** | **Prosedur Terverifikasi Anti-Salah Setting:**<br>1. **Pengajuan:** Admin Wilayah atau Teknisi di lapangan membuka form *Request Ubah WiFi* $\rightarrow$ input SSID Baru & Password Baru $\rightarrow$ status `menunggu_verifikasi_noc`.<br>2. **Validasi & Eksekusi NOC:** NOC memvalidasi permintaan, lalu mengeksekusi via API TR-069 GenieACS (atau konfigurasi manual).<br>3. **Pembaruan Otomatis:** Begitu NOC menekan **`[Verifikasi & Simpan]`**, SSID dan password baru tersimpan terenkripsi di pelanggan. Audit mencatat bahwa password berubah, tanpa menyimpan nilainya. Portal pelanggan tidak mengubah WiFi dan tidak me-reboot modem. |
+| **Status berlangganan** | `status_langganan` berisi `menunggu_verifikasi_pusat`, `siap_pasang`, `aktif`, atau `berhenti`. Cuti tidak mengganti kolom itu. `status_layanan` hanya untuk isolir. Selama `cuti_mulai` sampai `cuti_selesai`, hari itu bukan hari layanan dan scheduler tidak memutus. |
 | **Paket Layanan** | Harga paket adalah integer rupiah yang sudah termasuk PPN. Itu nominal yang ditagih, dipotong dompet, dan dicetak. Tidak ada perhitungan PPN kedua di kasir. |
 | **Mikrotik (Many-to-Many)** | Terhubung ke 1 atau banyak Mikrotik via tabel pivot `pelanggan_mikrotik` (IP statis per link) |
 | **Isolir** | Pelanggan baru: `batas_tunggakan = 2`, `siklus_tagihan = tanggal_tetap`. Batas `1` memutus pada satu tagihan lewat jatuh tempo. Batas kosong tidak pernah diputus scheduler. Siklus `prabayar` mengisi `isolir_berikutnya` dari tanggal bayar ditambah 30 hari, kecuali pembayaran terjadi selama penundaan toleransi. Rincian ada di `docs/logika-isolir.md`. |
-| **Jatuh Tempo & Prorata** | Jatuh tempo default tanggal 11 pukul 00:00 Asia/Jakarta. Prorata pasang baru, potongan cuti, dan aktif kembali memakai rumus yang sama: `harga_paket x hari_layanan / jumlah_hari_periode`, dibulatkan ke rupiah terdekat (0,5 ke atas). Hari pertama layanan pada potongan itu dihitung. `jumlah_hari_periode` adalah jumlah hari kalender bulan tagihan. |
+| **Jatuh Tempo & Prorata** | Jatuh tempo default tanggal 11 pukul 00:00 Asia/Jakarta. Prorata pasang baru, potongan cuti, dan aktif kembali memakai pembagian integer: `(harga_paket * hari_layanan + jumlah_hari_periode / 2) / jumlah_hari_periode`. Hasilnya rupiah integer, setengah ke atas. Hari pertama layanan pada potongan itu dihitung. `jumlah_hari_periode` adalah jumlah hari kalender bulan tagihan. |
 
 ---
 
@@ -101,7 +101,7 @@ flowchart TD
 | **IP Jalur Utama (Kabel/LAN)** | Cukup ketik IP koneksi langsung / kabel fisik / fiber lokal (contoh: `192.168.10.1`). |
 | **IP Jalur Cadangan (WireGuard)** | Cukup ketik IP tunnel WireGuard yang sudah aktif di OS (contoh: `10.200.0.2`). |
 | **Mekanisme Smart Failover** | **1. Coba Jalur Utama:** Aplikasi menembak API port 8728 ke IP Jalur Utama.<br>**2. Otomatis Pindah ke IP Cadangan:** Jika IP utama timeout (3 detik), aplikasi otomatis menembak API port 8728 ke IP Cadangan.<br>**3. Retry 10x:** Jika kedua IP gagal dihubungi, barulah masuk antrean retry 10x tiap 5 menit + kirim alert. |
-| **Native Watchdog Alert (Anti-Zabbix Down)** | **Jika Kabel Fisik Putus, WireGuard Hidup, & Zabbix Sedang Error/Mati:**<br>Billing memiliki watchdog internal independen (`RouterOsFailoverService`):<br>1. **Deteksi Mandiri:** Billing mendeteksi `ip_primary` timeout (3 detik) namun `ip_secondary` (WireGuard) sukses tersambung.<br>2. **Validasi Port Fisik via WireGuard:** Melalui tunnel WireGuard, billing langsung menembak API Mikrotik: `/interface ethernet print where name="sfp1"` $\rightarrow$ membaca bahwa port fisik memang `running=no` (validasi kabel putus).<br>3. **Alert darurat:** Tanpa menunggu Zabbix, billing mengirim Telegram ke NOC: "[FAILOVER AKTIF] Kabel fisik putus, router beralih ke jalur cadangan." WhatsApp tidak dipakai untuk alert otomatis.<br>4. **Auto-Generate Tiket Internal:** Billing otomatis menerbitkan tiket investigasi lapangan ke tim teknisi.<br>5. **Status Visual:** Node di dashboard/peta berubah menjadi 🟡 **Kuning (Failover Aktif)** dan jalur kabel fisik menjadi 🔴 **Merah**. |
+| **Native Watchdog Alert (Anti-Zabbix Down)** | **Jika Kabel Fisik Putus, WireGuard Hidup, & Zabbix Sedang Error/Mati:**<br>Billing memiliki watchdog internal independen (`RouterOsFailoverService`):<br>1. **Deteksi Mandiri:** Billing mendeteksi `ip_primary` timeout (3 detik) namun `ip_secondary` (WireGuard) sukses tersambung.<br>2. **Validasi Port Fisik via WireGuard:** Melalui tunnel WireGuard, billing mengirim kalimat API `/interface/ethernet/print` dengan atribut `?name=sfp1`, lalu membaca `running=no` untuk memastikan kabel putus. Kalimat CLI tidak dikirim.<br>3. **Alert darurat:** Tanpa menunggu Zabbix, billing mengirim Telegram ke NOC: "[FAILOVER AKTIF] Kabel fisik putus, router beralih ke jalur cadangan." WhatsApp tidak dipakai untuk alert otomatis.<br>4. **Auto-Generate Tiket Internal:** Billing otomatis menerbitkan tiket investigasi lapangan ke tim teknisi.<br>5. **Status Visual:** Node di dashboard/peta berubah menjadi 🟡 **Kuning (Failover Aktif)** dan jalur kabel fisik menjadi 🔴 **Merah**. |
 | **Nama Address-List Isolir** | Nama daftar yang sudah dipakai firewall Mikrotik, contoh `isolir`. Billing menyimpan nama itu dan tidak membuat aturan firewall. |
 | **Monitoring Dashboard NOC** | Status indikator real-time per titik router (Hijau = IP Utama UP, Kuning = Failover ke IP Cadangan, Merah = Kedua IP Unreachable). |
 | **Test Koneksi Dual-Path** | Tombol uji ping & API socket untuk kedua IP secara mandiri. |
@@ -115,7 +115,7 @@ flowchart TD
 | Fitur | Keterangan |
 |---|---|
 | **Format No. Tagihan** | `INV-YYYY-MM-XXXX` (contoh: `INV-2026-11-0001`). Nomor diambil dari sequence per periode di dalam transaksi database. Nomor yang sudah terbit tidak dipakai ulang, termasuk tagihan yang dibatalkan. |
-| **Generate Otomatis & Manual** | 1. **Otomatis bulanan:** satu tagihan `langganan` untuk satu rentang layanan. Unique `(pelanggan_id, tipe_tagihan, layanan_mulai)` menolak rentang yang sama terbit dua kali. Satu bulan kalender boleh punya dua tagihan langganan bila cuti memotong bulan itu.<br>2. **Invoice manual:** biaya di luar langganan (penggantian router, denda) menjadi tagihan `manual` dan tidak dihitung `batas_tunggakan`.<br>3. Tagihan punya baris. `nominal` adalah jumlah baris. `sisa` selalu `nominal - terbayar`, dijaga constraint. |
+| **Generate Otomatis & Manual** | 1. **Otomatis bulanan:** satu tagihan `langganan` untuk satu rentang layanan. Kendala unik `(pelanggan_id, tipe_tagihan, layanan_mulai)` ada pada tabel `TAGIHAN` dan menolak rentang yang sama terbit dua kali. Satu bulan kalender boleh punya dua tagihan langganan bila cuti memotong bulan itu.<br>2. **Invoice manual:** biaya di luar langganan (penggantian router, denda) menjadi tagihan `manual` dan tidak dihitung `batas_tunggakan`.<br>3. Tagihan punya baris. `nominal` adalah jumlah baris. `sisa` selalu `nominal - terbayar`, dijaga constraint. |
 | **Link Invoice Publik** | Token acak 128 bit, unik, dan dapat diputar bila bocor. Contoh bentuk: `https://billing.isp.com/inv/` diikuti 32 karakter hex. Halaman tanpa login hanya menampilkan nomor tagihan, nama depan, nominal, status, dan jatuh tempo. |
 | **Aksi "Kirim Invoice" (Direct WA)** | Di halaman admin, terdapat tombol **[📲 Kirim Invoice]**: Saat diklik, browser **langsung membuka aplikasi WhatsApp** (atau WhatsApp Web) ke nomor HP pelanggan dengan pesan siap kirim yang sudah terisi otomatis (nama, rincian tagihan, batas bayar, dan link invoice publik). |
 | **Riwayat Lengkap di Portal** | Seluruh riwayat tagihan masa lalu (lunas, belum bayar, cicilan) tersusun rapi di **Portal Pelanggan** setelah pelanggan melakukan login. |
@@ -126,7 +126,7 @@ flowchart TD
 
 #### Tagihan hanya untuk hari layanan
 
-Hari layanan adalah hari yang bukan cuti dan bukan hari `status_layanan = putus`. Hari putus mulai dihitung sebagai bukan layanan, karena layanan diputus pukul 00:05. Hari layanan dinyalakan kembali dihitung. Hari `tidak_serempak` tetap ditagih.
+Hari layanan adalah hari yang bukan cuti dan bukan hari dalam rentang putus. Rentang itu mulai pada `hari_mulai_putus`, yaitu tanggal Asia/Jakarta saat baris antrian putus ditulis, dan berakhir sehari sebelum layanan nyala. Jam sukses API tidak menggeser tanggal itu. Hari `tidak_serempak` tetap ditagih. Nominal tagihan baru diubah saat `status_layanan` menjadi `putus`, memakai `hari_mulai_putus`.
 
 Tagihan langganan yang sudah terbit dipotong ke hari layanan yang tersisa hanya di transaksi yang sama dengan perubahan `status_layanan` menjadi `putus`. Saat status masih `menunggu_router`, nominal tidak diubah. Nomor tagihan tidak berubah. Tagihan dikunci `lockForUpdate`. Audit menyimpan nominal lama dan nominal baru. Bila tidak ada hari layanan tersisa, tagihan menjadi `batal` dan tidak dihitung tunggakan. Uang yang sudah masuk di atas nominal baru kembali ke dompet.
 
@@ -170,26 +170,16 @@ Menyimpan tagihan dan pembayaran tetap lewat aksi bayar atau aktivasi yang terpi
 | Metode | Alur Verifikasi | Eksekusi Buka Isolir |
 |---|---|---|
 | **Cash (Kasir, Admin, Kolektor)** | Langsung tercatat atas nama user yang menerima uang. Nominal masuk ke periode kas orang itu. Titik GPS disimpan sebagai catatan lokasi, bukan sebagai satu-satunya pengendali. Setiap simpan memakai `idempotency_key` supaya klik ganda tidak membuat dua pembayaran. | Isolir scheduler dibuka hanya bila syarat putus tidak terpenuhi. Isolir manual tidak terbuka karena pembayaran. |
-| **Transfer Manual (Pelanggan)** | Pelanggan mengunggah bukti. Status tagihan menjadi `menunggu_verifikasi` dan tetap dihitung tunggakan. | Setelah Admin Global atau Admin Wilayah menyetujui dan syarat putus tidak terpenuhi. |
-| **Transfer Manual (Admin)** | Admin Global atau Admin Wilayah mengunggah bukti. Tagihan langsung `lunas`. | Syarat putus dihitung ulang. Putus manual tidak ikut terbuka. |
+| **Transfer Manual (Pelanggan)** | Pelanggan mengunggah bukti. Status tagihan menjadi `menunggu_verifikasi` dan tetap dihitung tunggakan. | Setelah Admin Global menyetujui, atau Admin Wilayah yang dusunnya mencakup pelanggan itu. Syarat putus dihitung ulang. |
+| **Transfer Manual (Admin)** | Admin Global, atau Admin Wilayah pada dusun di `user_wilayah`, mengunggah bukti. Tagihan langsung `lunas`. | Syarat putus dihitung ulang. Putus manual tidak ikut terbuka. |
 | **Transfer Manual (Kolektor)** | Mengikuti level wewenang kolektor. Bukti wajib. | Sama dengan level kolektor, dan tetap menunggu syarat putus. |
-| **Payment Gateway (API)** | Adapter disiapkan untuk gateway yang dipilih nanti. Callback kedua dengan `gateway_transaction_id` yang sama tidak membuat pembayaran baru. | Setelah lunas dan syarat putus tidak terpenuhi. |
+| **Payment Gateway (API)** | Adapter disiapkan untuk gateway yang dipilih nanti. Callback ditolak sebelum transaksi database bila signature, waktu, atau sumber tidak sah. Callback yang lolos dan membawa `gateway_transaction_id` yang sudah ada tidak membuat pembayaran baru. | Setelah lunas dan syarat putus tidak terpenuhi. |
 
 ---
 
-### 6. 👷 Manajemen Kolektor & Level Wewenang Input
+### 6. 👷 Manajemen Kolektor
 
-Setiap kolektor memiliki konfigurasi penugasan dan wewenang transaksi tersendiri:
-
-#### Penugasan Pelanggan (Assignment Scope)
-* **Spesifik / Custom:** Ditugaskan ke pelanggan tertentu saja (bisa 1 pelanggan, 2 pelanggan, atau daftar puluhan pelanggan pilihan).
-* **Wilayah / Area:** Menangani semua pelanggan di wilayah kerjanya.
-* **Global:** Dapat menagih pelanggan manapun tanpa batasan area.
-
-#### Level Wewenang Input Pembayaran (Custom per Kolektor)
-1. **Level 1 (Cash Only):** Hanya bisa menerima & input pembayaran uang tunai.
-2. **Level 2 (Cash + Transfer Verifikasi Admin):** Bisa input pembayaran transfer + wajib upload bukti, namun status tagihan menjadi `menunggu_verifikasi` admin. Isolir belum terbuka sampai admin menyetujui.
-3. **Level 3 (Cash + Transfer Auto-Approve):** Kolektor terpercaya dapat mencatat transfer beserta bukti tanpa antrean verifikasi. Isolir terbuka hanya bila syarat putus tidak terpenuhi. Isolir manual tidak terbuka. Pengaju tidak menyetujui bypass-nya sendiri.
+Penugasan, level wewenang, dan saldo di tangan kolektor ada pada modul 8.
 
 ---
 
@@ -257,11 +247,13 @@ flowchart TD
 
 ---
 
-### 8. 👷 Manajemen Kolektor & Setoran Kas
+### 8. 👷 Manajemen Kolektor, Wewenang, dan Setoran Kas
+
+Penugasan kolektor memakai salah satu dari tiga cakupan: pelanggan tertentu, dusun di `user_wilayah`, atau global. `level_wewenang` pada `KOLEKTOR` berisi `1`, `2`, atau `3`. Level 1 hanya menerima tunai. Level 2 menerima tunai dan transfer yang menunggu verifikasi admin. Level 3 mencatat transfer beserta bukti tanpa antrean verifikasi. Isolir manual tidak terbuka karena pembayaran. Sisa di tangan dibaca dari `PERIODE_KAS`, tidak disimpan ulang di `KOLEKTOR`.
 
 | Fitur | Keterangan |
 |---|---|
-| **Data Kolektor** | Nama, user login, wilayah penugasan, dan batas kas gantung dalam rupiah. Penerimaan tunai baru ditolak bila saldo ditambah nominal itu melewati batas. |
+| **Data Kolektor** | Nama, user login, cakupan penugasan, `level_wewenang`, dan `batas_di_tangan` dalam rupiah. Penerimaan tunai baru ditolak bila sisa periode ditambah nominal itu melewati batas. |
 | **Buku Kas Gantung** | Saldo uang tunai fisik yang sedang dipegang kolektor (bertambah setiap terima cash) |
 | **Input Pembayaran** | Sesuai level wewenang (Cash only, Cash+Transfer pending, Cash+Transfer auto). **Wajib menangkap koordinat GPS realtime** perangkat saat transaksi dicatat. |
 | **Peta Penagihan (Tracking)** | Admin dapat melihat titik lokasi penagihan kolektor di peta (Google Maps/OpenStreetMap) untuk memvalidasi apakah kolektor benar-benar menagih di rumah pelanggan atau di tempat lain. |
@@ -331,7 +323,7 @@ Penerimaan tunai, pembatalan, dan konfirmasi setoran memakai satu transaksi deng
 | Fitur | Keterangan |
 |---|---|
 | **Data Reseller** | Nama mitra, kontak, nomor rekening bank/e-wallet untuk pencairan dana |
-| **Penetapan Komisi** | Berbasis persentase (%) atau nominal flat per pelanggan/paket (contoh: 40% dari tagihan) |
+| **Penetapan Komisi** | Nominal flat dalam rupiah, atau `basis_poin` integer dengan 10000 = 100%. Contoh 40% disimpan sebagai 4000. Hasilnya `(nominal * basis_poin + 5000) / 10000`, rupiah integer. |
 | **Auto-Credit Dompet** | Saldo reseller bertambah saat tagihan langganan `lunas`, lewat baris mutasi. Pembayaran sebagian tidak mencairkan komisi. Pembatalan menulis mutasi balik. Komisi yang sudah dicairkan menjadi piutang reseller dan tidak memaksa saldo minus. |
 | **Mutasi Saldo** | Riwayat detail keluar-masuk saldo dompet per transaksi tagihan |
 | **Portal Reseller** | Reseller dapat login untuk melihat daftar klien mereka, status bayar, saldo, dan riwayat komisi |
@@ -397,7 +389,7 @@ Penerimaan tunai, pembatalan, dan konfirmasi setoran memakai satu transaksi deng
 | Lihat status akun | **Awal** | Nyala / Putus / Nonaktif |
 | Lihat paket berlangganan | **Awal** | Nama paket, kecepatan |
 | Ganti password portal | **Awal** | — |
-| **Integrasi ACS (TR-069)** | *Future* | Monitor jumlah user aktif, ganti password WiFi |
+| **Integrasi ACS (TR-069)** | *Future* | Monitor jumlah user aktif. Perubahan WiFi dan reboot modem hanya lewat ajuan yang diverifikasi NOC. |
 | Pembayaran online | *Future* | Integrasi payment gateway (Tripay/Xendit) |
 
 ---
@@ -455,13 +447,13 @@ flowchart TD
 | Kelompok Tunggakan | Status Lapangan | Perlakuan & Tampilan Dashboard |
 |---|---|---|
 | **Kelompok 1: Tunggakan Lapangan (Risiko Piutang)** | • `belum_ditagih`<br>• `didatangi_belum_bayar`<br>• `didatangi_belum_ketemu` | **Kartu Merah di Dashboard:** Menampilkan total nominal rupiah dan jumlah pelanggan yang harus segera ditindaklanjuti kolektor. Dilengkapi tombol tracking kunjungan kolektor & GPS lokasi saat didatangi. |
-| **Kelompok 2: Tunggakan Terkonfirmasi (Toleransi Resmi)** | • `perpanjangan_tempo_1_bulan`<br>• `vip_siklus_non_reguler` | **Kartu Kuning/Slate di Dashboard (Dipisah 100%):** Memuat piutang yang sudah terkonfirmasi aman karena pelanggan resmi mengajukan perpanjangan tempo atau instansi/VIP yang membayar per termin khusus. Piutang ini **tidak mencemari metrik kinerja kolektor**. |
+| **Kelompok 2: Tunggakan Terkonfirmasi** | • `perpanjangan_tempo_1_bulan`<br>• `vip_siklus_non_reguler` | Kartu ini hanya label penagihan. `perpanjangan_tempo_1_bulan` muncul setelah persetujuan menulis `isolir_ditunda_hingga`, default 30 hari sejak tanggal setuju, dengan `alasan_penundaan = toleransi`. `vip_siklus_non_reguler` tidak menunda isolir. |
 
 #### Fitur Pencatatan Kunjungan Kolektor di Lapangan:
 * Saat kolektor datang ke rumah pelanggan namun **tidak terjadi pembayaran**, kolektor dapat memilih tombol status cepat:
   1. **[🚪 Rumah Kosong / Tidak Ketemu]** $\rightarrow$ status otomatis menjadi `didatangi_belum_ketemu` + rekam GPS & jam kunjungan.
   2. **[⏳ Belum Bayar / Minta Datang Lagi]** $\rightarrow$ input catatan alasan (misal: "gajian tgl 25") $\rightarrow$ status menjadi `didatangi_belum_bayar`.
-  3. **[📝 Pengajuan Perpanjangan 1 Bulan]** $\rightarrow$ masuk antrean verifikasi Admin Global $\rightarrow$ jika di-approve, berpindah ke **Kelompok 2 (Tunggakan Terkonfirmasi)**.
+  3. **[📝 Pengajuan Perpanjangan 1 Bulan]** masuk antrean Admin Global. Persetujuan menulis `isolir_ditunda_hingga` 30 hari sejak tanggal setuju dan `alasan_penundaan = toleransi`. Bila pelanggan sedang putus oleh scheduler, `nyalakan_layanan` dipanggil.
 
 ---
 
@@ -480,7 +472,7 @@ Sistem billing ISP dengan ribuan klien wajib memiliki mekanisme migrasi data cep
   * **Validasi Cerdas Baris per Baris:** Menampilkan laporan baris mana yang sukses dan baris mana yang gagal beserta alasannya secara spesifik.
   * Pemrosesan impor ribuan baris dijalankan via **Background Queue** agar browser tidak mengalami *HTTP Timeout*.
 * **Export Data Pelanggan:**
-  * Dapat difilter berdasarkan: Wilayah (Kecamatan/Desa/Dusun), Titik Mikrotik, Paket Langganan, Reseller, atau Status (Aktif/Terisolir). Format ekspor: **Excel (.xlsx), CSV, dan PDF**.
+  * Dapat difilter berdasarkan: Wilayah (Kecamatan/Desa/Dusun), Titik Mikrotik, Paket Langganan, Reseller, atau Status (Aktif/Terisolir). Format ekspor: **Excel (.xlsx), CSV, dan PDF**. Admin Wilayah, kolektor, dan teknisi hanya mengekspor dusun yang ada di `user_wilayah`.
 
 #### B. Export & Import Invoice / Tagihan Masa Lalu (Histori Transaksi Lama)
 * **Import Tagihan Masa Lalu (Migrasi Pembukuan Sebelum Ada Aplikasi Ini):**
@@ -515,7 +507,7 @@ Sistem penanganan gangguan dirancang dengan alur **triage profesional** untuk me
 * Memudahkan NOC dan Admin Global melihat siapa saja tim lapangan yang sedang siap menerima penugasan.
 
 #### B. Papan Komplain Bersama (*Shared Helpdesk Feed*)
-* Seluruh keluhan yang masuk (dari Portal Pelanggan, input Kolektor di lapangan, Reseller, maupun telepon kantor) bermuara di satu **Papan Komplain Terbuka** yang dapat dipantau oleh seluruh tim (Admin, NOC, dan semua Teknisi).
+* Keluhan masuk ke satu papan komplain. Super Admin, NOC, dan Admin Global melihat semua wilayah. Admin Wilayah, kolektor, dan teknisi hanya melihat tiket pelanggan pada dusun di `user_wilayah`. Peta memakai batas yang sama.
 * **Aturan Penting: Komplain Masuk TIDAK Otomatis Menjadi Tugas Lapangan.** Sering kali 20 keluhan pelanggan di satu desa disebabkan oleh **1 kabel backbone putus atau listrik OLT/Mikrotik padam (Kendala Massal)**. Menugaskan 20 teknisi terpisah untuk kasus ini adalah pemborosan.
 
 #### C. Triage NOC: Pengelompokan "Agenda Gangguan Massal Multi-Area"
@@ -624,7 +616,7 @@ Karena di lapangan tipe router/modem pelanggan sangat beragam (tidak semua modem
 
 | Kondisi Perangkat Pelanggan | Perlakuan di Aplikasi Billing |
 |---|---|
-| **Modem Support ACS & Sudah Terintegrasi** | • **Informasi Redaman Otomatis Tampil:** Muncul indikator sinyal optik *real-time* (contoh: `🟢 -19.4 dBm`) lengkap dengan voltase, suhu modem, dan tombol refresh sinyal.<br>• **Fitur Tambahan Aktif:** Tombol ganti password/SSID WiFi dan tombol remote reboot modem terbuka di portal admin dan portal pelanggan. |
+| **Modem Support ACS & Sudah Terintegrasi** | • **Informasi Redaman Otomatis Tampil:** Muncul indikator sinyal optik *real-time* (contoh: `🟢 -19.4 dBm`) lengkap dengan voltase, suhu modem, dan tombol refresh sinyal.<br>• **Fitur Tambahan Aktif:** Ganti SSID, password WiFi, dan reboot modem hanya lewat ajuan yang diverifikasi NOC. Portal pelanggan tidak menerima tombol itu. |
 | **Modem Belum / Tidak Support ACS** | • Informasi redaman ACS otomatis disembunyikan agar tidak membingungkan staf lapangan.<br>• Profil pelanggan berlabel *Non-ACS (Router Standar)*.<br>• Tersedia form opsional: **`[Tautkan Serial Number ACS]`** jika suatu saat pelanggan melakukan upgrade modem ke tipe yang mendukung TR-069. |
 
 ##### 4. Alternatif & Cadangan Emas: Cek Redaman Langsung via SNMP OLT (Direct Hardware Query)
@@ -646,8 +638,8 @@ Selain ACS TR-069, aplikasi billing menyediakan jalur diagnosa langsung ke peran
   * Form Master OLT: `nama_olt`, `ip_address`, `snmp_supported` (boolean Ya/Tidak), `snmp_community` (read-only), `snmp_port` (161), `tipe_merk_olt`.
   * Form Penugasan di Pelanggan: `olt_id`, `pon_port` (contoh: `1/1/2`), `onu_id` (contoh: `12`), atau Serial Number (`onu_sn`).
 
-##### 5. Kebijakan Prioritas Pengecekan Redaman (ACS Default, SNMP OLT Opsional Masa Depan)
-Sesuai arahan operasional jaringan Anda, sistem billing menetapkan **ACS Server (GenieACS / TR-069) sebagai metode DEFAULT utama**, dengan SNMP OLT disiapkan sebagai opsi cadangan untuk pengembangan masa depan:
+##### 5. Kebijakan Prioritas Pengecekan Redaman (ACS Default, SNMP OLT Cadangan Aktif)
+ACS (GenieACS / TR-069) adalah jalur utama. SNMP OLT adalah cadangan yang langsung dipakai bila ACS gagal atau pelanggan tidak terhubung ke ACS, dan hanya bila `snmp_supported = true` pada OLT itu.
 
 ```mermaid
 flowchart TD
@@ -657,7 +649,7 @@ flowchart TD
     RUN_ACS --> ACS_OK{"Apakah Query ACS Berhasil?"}
     ACS_OK -->|Sukses| SHOW_ACS["🟢 Hasil: -19.4 dBm (Sumber: ACS TR-069)"]
     
-    ACS_OK -->|Gagal / Timeout| CHECK_SNMP_OPTIONAL{"2. JALUR OPSIONAL (MASA DEPAN):\nApakah OLT Tersebut Mengaktifkan SNMP?\n(snmp_supported == true)"}
+    ACS_OK -->|Gagal / Timeout| CHECK_SNMP_OPTIONAL{"2. CADANGAN SNMP AKTIF:\nApakah OLT Tersebut Mengaktifkan SNMP?\n(snmp_supported == true)"}
     CHECK_ACS -->|TIDAK, Non-ACS| CHECK_SNMP_OPTIONAL
 
     CHECK_SNMP_OPTIONAL -->|YA, SNMP Aktif| RUN_SNMP["Coba Query Cadangan via SNMP OLT"]
@@ -668,7 +660,7 @@ flowchart TD
 
 * **Manfaat Pengaturan Ini:**
   1. **Fokus Operasional Bersih:** Sistem secara *default* langsung mengandalkan GenieACS TR-069 untuk seluruh modem pelanggan tanpa kebingungan konfigurasi OLT.
-  2. **Siap untuk Masa Depan (*Future-Proof*):** Jika di masa mendatang Anda menambah atau meng-upgrade unit OLT yang sudah mendukung SNMP (misal ZTE C320 atau Huawei), Anda cukup mencentang `snmp_supported = true` pada OLT tersebut, dan sistem akan langsung dapat memanfaatkannya tanpa perlu merombak kode aplikasi!
+  2. **Cadangan per OLT:** OLT dengan `snmp_supported = true` langsung dipakai sebagai cadangan. OLT yang flag-nya false tidak di-query.
   3. **Human-Assisted Fallback:** Jika perangkat belum terhubung ke ACS dan OLT belum support SNMP, tombol bantuan cepat WhatsApp dan Chat Internal NOC selalu siap memfasilitasi komunikasi.
 
 #### H. Widget Monitor Redaman Live di Layar Teknisi (*Self-Service Splicing Monitor*)
@@ -712,7 +704,7 @@ Sistem billing dapat dihubungkan ke server NMS eksternal (Zabbix atau LibreNMS) 
 | **Deduplikasi Saat Zabbix Re-Up (*Late-Arrival Event Correlation*)** | **Anti-Tabrakan Jika Zabbix Hidup Terlambat:**<br>Jika watchdog billing sudah lebih dulu membuat tiket & membunyikan alarm saat kabel putus, lalu server Zabbix baru menyala dan mengirim webhook:<br>1. **Korelasi Aset & Status:** Sistem billing mengecek `asset_key` (`mikrotik_id` + `interface`). Jika sudah ada tiket berstatus `open`/`dikerjakan`, billing **DILARANG membuat tiket baru** dan **DILARANG mengirim notifikasi ulang** (tidak ada blast pesan Telegram, WA, atau suara alarm baru).<br>2. **Tautkan Event ID Zabbix & Tampilkan di Dashboard Aktif:** Billing meng-update tiket eksisting dengan menyematkan `zabbix_event_id` dan menyisipkan jejak audit langsung ke **Timeline / Card Tiket yang sedang dikerjakan** secara real-time (Livewire/WebSocket):<br>`[14:15 WIB] ℹ️ Zabbix Online Validation: Server Zabbix kembali UP & menautkan Event ID #10842 ke tiket ini. Sensor eksternal tersinkronisasi.`<br>Staf NOC / teknisi yang sedang memantau dashboard langsung melihat update tersebut tanpa terganggu notifikasi ganda. Saat kabel selesai disambung, webhook `RESOLVED` dari Zabbix tetap bisa menutup tiket secara otomatis! |
 | **Auto-Resolve (Penutupan Tiket Otomatis)** | Saat kabel selesai disambung dan link kembali hidup, Zabbix mengirim event `RESOLVED`. Tiket di aplikasi billing otomatis bertransisi menjadi hijau (*Normal Kembali*). |
 | **Deteksi Cerdas: Mati Lampu PLN vs. Kabel Optik Putus (*Power Outage vs Fiber Cut*)** | **Membedakan Pemadaman Listrik Warga dari Kerusakan Fisik Kabel:**<br>1. **Sinyal Dying Gasp (TR-069 ACS):** Saat listrik rumah warga padam, sisa daya kapasitor modem ONT memancarkan sinyal darurat terakhir (*Dying Gasp: Power Off*) ke ACS sebelum mati total.<br>2. **Korelasi Kluster Wilayah:** Jika $\ge 3$ modem di satu RT/RW/Dusun serentak mengirim sinyal mati daya dalam rentang waktu 3 menit, sistem **DILARANG menerbitkan tiket kabel putus**.<br>3. **Status Peta Otomatis:** Sistem menyematkan status khusus pada peta GIS: `[⚡ MATI LAMPU PLN - Area Dusun Krajan]`. Garis kabel fiber tetap hijau, ikon rumah diberi badge petir kuning.<br>4. **Pencegahan False-Alarm:** Mencegah teknisi panik disuruh memanjat tiang mencari kabel putus padahal gardu PLN setempat sedang padam! |
-| **Keamanan Endpoint Webhook** | Dilindungi dengan header rahasia `X-Monitoring-Secret` dan pembatasan IP pengirim (hanya menerima data dari IP server Zabbix/LibreNMS Anda). |
+| **Keamanan Endpoint Webhook** | `POST /api/v1/webhook/monitoring/zabbix` dan `POST /api/v1/webhook/monitoring/optical-alert` menolak permintaan sebelum menulis data bila header `X-Monitoring-Secret` salah, IP pengirim di luar daftar, atau payload tidak sesuai skema. |
 
 #### J. Arsitektur Pemantauan Redaman Optik: Polling, Histori, & Alerting (Zabbix vs. LibreNMS vs. Native Billing)
 
@@ -822,7 +814,7 @@ flowchart TD
 | **Visualisasi Segmen Topologi Ring (*Ring Health Layer*)** | **Deteksi Cerdas Jalur Cincin yang Putus Sebelah:**<br>Setiap bentangan kabel ring di peta memiliki status live berbasis SNMP port SFP kedua ujungnya:<br>• 🟢 **Hijau Solid (Ring Normal):** Seluruh port SFP kedua ujung link menyala normal, proteksi cincin aktif 100%.<br>• 🟡 **Kuning Putus-Putus (Redaman SFP Drop):** Kabel belum putus namun redaman laser SFP anjlok ($\le -24\text{ dBm}$), memberi alarm dini sebelum link down.<br>• 🔴 **Merah Berkedip (Segmen Putus / Broken Link):** Port SFP di segmen tersebut mendeteksi link-down / LOS (-40 dBm). Garis kabel segmen tersebut seketika memerah di peta Leaflet, meskipun internet warga tetap menyala via arah sebaliknya!<br>• **Banner Peringatan:** Peta memunculkan banner status: *"Ring Segmen Ropoh-Gawis Terbuka (Degraded). Redundansi Jaringan Hilang!"*. |
 | **Monitoring Segmen Non-DDM / HTB (*Traffic & L2 Ring Watchdog*)** | **Solusi untuk Kabel Media Converter (HTB) / SFP Non-DDM di Ring Bridge (Non-OSPF):**<br>Jika Segmen 3 menggunakan HTB non-DDM dan berada dalam 1 Layer 2 Bridge Ring (RSTP), ping antar IP router akan **tetap UP** (memutar lewat Segmen 1 & 2) dan lampu HTB tetap nyala. Untuk mendeteksi putusnya Segmen 3 secara presisi 100%, sistem menyediakan 3 metode deteksi:<br>1. **Pemantauan Bandwidth SNMP Real-Time:** Membaca counter 64-bit (`ifHCInOctets`/`ifHCOutOctets`) pada port fisik Segmen 3. Saat kabel putus, trafik anjlok mendadak ke $\sim 0\text{ bps}$ (*Traffic Flatline*).<br>2. **Mikrotik Neighbor Discovery (MNDP / LLDP) per-Port Fisik:** Sistem membaca daftar `/ip neighbor` khusus pada interface fisik Segmen 3. Begitu kabel optik putus, Router B seketika **HILANG** dari tetangga fisik port tersebut $\rightarrow$ Segmen 3 terkonfirmasi putus!<br>3. **Status Port RSTP (SNMP BRIDGE-MIB):** Di ring bridge, ada port cadangan yang di-blokir (`discarding`). Saat Segmen 3 putus, port cadangan otomatis berubah menjadi `forwarding`.<br>4. **Isolated Probe VLAN (Trik Terbaik ISP):** Memasang VLAN uji khusus (misal VLAN 999) hanya di fisik port Segmen 3 di luar Bridge utama dengan IP `/30`. Paket uji ini mustahil memutar lewat ring, sehingga seketika RTO saat kabel optik putus $\rightarrow$ garis segmen di peta langsung berubah **🔴 Merah**! |
 | **Form Konfigurasi Segmen Kabel & Auto-Sync ke Zabbix** | **Cara Menentukan Metode Pengecekan di Aplikasi & Memberitahu Zabbix:**<br>1. **Form Segmen di Peta:** Admin mengklik garis kabel di peta $\rightarrow$ Form: `Node Asal: Mikrotik A (ether1)`, `Node Tujuan: Mikrotik B (ether1)`, `Tipe Media: [HTB Non-DDM ▼]`, `Metode Cek: [MNDP Neighbor Check ▼]`.<br>2. **Tombol `[🚀 Sinkronkan ke Zabbix]`:** Backend billing otomatis memanggil Zabbix API untuk membuat Item SNMP (`mikrotik.neighbor.identity[ether1]`) dan Trigger ekspresi: `last(/Mikrotik A/mikrotik.neighbor.identity[ether1]) <> "Mikrotik B"`.<br>3. **Zero-Configuration:** Staf NOC tidak perlu login manual ke dashboard Zabbix; Zabbix langsung tahu bahwa ether1 Mikrotik A wajib bertetangga dengan Mikrotik B! |
-| **Analisa Cerdas Estafet Multi-Mikrotik (*Neighbor Baseline & Fault Isolation*)** | **Solusi Kasus Nyata: 1 Port ether1 Terhubung ke Switch / HTB Estafet yang Membawahi Banyak Mikrotik (Mikrotik 2, 3, 4):**<br>1. **Fitur Pelajari Tetangga (*Auto-Baseline Learning*):** Admin cukup menekan tombol **`[🔍 Scan & Kunci Baseline Tetangga]`** pada port tersebut. Sistem otomatis membaca `/ip/neighbor/print where interface=ether1` dan mengunci daftar resmi router yang sah terhubung di belakang port tersebut (misal: terdaftar Mikrotik 2, 3, dan 4). Teknisi/NOC tidak perlu menebak atau menghafal manual.<br>2. **Mesin Diagnosa Akar Masalah (*Root Cause Isolation*):**<br>• **Pola A: SEMUA Router Hilang Serentak (0/3 Aktif):** Sistem menyimpulkan: *"Kabel Feeder Utama dari Mikrotik 1 Putus, atau Switch HTB di tengah mati lampu/rusak!"* (Garis utama di peta memerah).<br>• **Pola B: SEBAGIAN Router Hilang (Misal Mikrotik 3 Hilang, Mikrotik 2 & 4 Masih Normal):** Sistem menyimpulkan: *"Kabel Utama & Switch Normal. Gangguan HANYA pada kabel tarikan cabang dari Switch menuju Mikrotik 3!"* (Garis utama tetap hijau, hanya cabang Mikrotik 3 yang memerah). Teknisi tidak membuang waktu mengecek kabel utama! |
+| **Analisa Cerdas Estafet Multi-Mikrotik (*Neighbor Baseline & Fault Isolation*)** | **Solusi Kasus Nyata: 1 Port ether1 Terhubung ke Switch / HTB Estafet yang Membawahi Banyak Mikrotik (Mikrotik 2, 3, 4):**<br>1. **Fitur Pelajari Tetangga (*Auto-Baseline Learning*):** Admin cukup menekan tombol **`[🔍 Scan & Kunci Baseline Tetangga]`** pada port tersebut. Sistem mengirim kalimat API `/ip/neighbor/print` dengan atribut `?interface=ether1` dan mengunci daftar resmi router yang sah terhubung di belakang port tersebut (misal: terdaftar Mikrotik 2, 3, dan 4). Teknisi/NOC tidak perlu menebak atau menghafal manual.<br>2. **Mesin Diagnosa Akar Masalah (*Root Cause Isolation*):**<br>• **Pola A: SEMUA Router Hilang Serentak (0/3 Aktif):** Sistem menyimpulkan: *"Kabel Feeder Utama dari Mikrotik 1 Putus, atau Switch HTB di tengah mati lampu/rusak!"* (Garis utama di peta memerah).<br>• **Pola B: SEBAGIAN Router Hilang (Misal Mikrotik 3 Hilang, Mikrotik 2 & 4 Masih Normal):** Sistem menyimpulkan: *"Kabel Utama & Switch Normal. Gangguan HANYA pada kabel tarikan cabang dari Switch menuju Mikrotik 3!"* (Garis utama tetap hijau, hanya cabang Mikrotik 3 yang memerah). Teknisi tidak membuang waktu mengecek kabel utama! |
 | **Korelasi Silang Ring Kompleks (*Multi-Router Ring Fault Pinpointing*)** | **Solusi Ring: Mikrotik 1 ↔ Switch A (Mikrotik 2,3,4) ↔ Mikrotik 5 ↔ Mikrotik 1:**<br>Jika Segmen 1 (antara Mikrotik 1 dan Switch A) putus, seluruh router tetap bisa saling ping lewat Segmen 3 & 2 (trafik ring memutar). Sistem menentukan bahwa **Segmen 1 yang putus** lewat 3 fakta korelasi silang:<br>1. **Fakta Mikrotik 1 (ether1):** Port `ether1` mendadak kehilangan SELURUH tetangga (Mikrotik 2,3,4 hilang dari `ether1`) dan trafik `ether1` anjlok ke 0 bps.<br>2. **Fakta Mikrotik 1 (ether2):** Port `ether2` MASIH mendeteksi Mikrotik 5 dan trafik melonjak membawa failover ring.<br>3. **Fakta Mikrotik 2 (di Switch A):** Mikrotik 2 kehilangan Mikrotik 1, TAPI masih bertetangga dengan Mikrotik 3, 4, dan 5 (membuktikan Switch A dan Segmen 2 hidup!).<br>• **Hasil Diagnosa Otomatis:** Sistem 100% yakin **HANYA Segmen 1 (Mikrotik 1 ↔ Switch A) yang putus** $\rightarrow$ Garis Segmen 1 di peta seketika menyala 🔴 Merah Berkedip! |
 
 #### M. Manajemen Aset ODP & Alur Pengajuan ODP Baru (*New ODP Onboarding*)
@@ -1014,39 +1006,39 @@ flowchart LR
 ```mermaid
 erDiagram
     KECAMATAN {
-        int id
+        bigint id
         string nama
     }
 
     DESA {
-        int id
-        int kecamatan_id
+        bigint id
+        bigint kecamatan_id
         string nama
     }
 
     DUSUN {
-        int id
-        int desa_id
+        bigint id
+        bigint desa_id
         string nama
     }
 
     ODP {
-        int id
+        bigint id
         string kode_odp
         string nama_odp
-        int dusun_id
+        bigint dusun_id
         decimal latitude
         decimal longitude
         int kapasitas_port
         string foto_tiang
         string status
-        int diusulkan_oleh_user_id
-        int approved_by_user_id
+        bigint diusulkan_oleh_user_id
+        bigint approved_by_user_id
         datetime approved_at
     }
 
     OLT {
-        int id
+        bigint id
         string nama_olt
         string ip_address
         string tipe_merk
@@ -1057,32 +1049,32 @@ erDiagram
     }
 
     PELANGGAN {
-        int id
+        bigint id
         string nama
         string alamat_detail
-        int dusun_id
-        int desa_id
-        int kecamatan_id
+        bigint dusun_id
+        bigint desa_id
+        bigint kecamatan_id
         string tipe_sumber_koneksi
-        int odp_id
+        bigint odp_id
         int odp_port
-        int parent_pelanggan_id
+        bigint parent_pelanggan_id
         string catatan_sumber_koneksi
-        int olt_id
+        bigint olt_id
         string pon_port
         int onu_id
         string onu_sn
         string no_hp
         string email
         string no_pelanggan
-        int paket_id
-        int reseller_id
-        int referred_by_id
+        bigint paket_id
+        bigint reseller_id
+        bigint referred_by_id
         string referral_code
         bigint saldo_dompet
         int saldo_poin
         bool auto_pay_enabled
-        int batas_tunggakan
+        int batas_tunggakan "null, 1, atau 2"
         string siklus_tagihan
         string status_layanan
         string sumber_putus
@@ -1110,18 +1102,19 @@ erDiagram
         string status_langganan
         date cuti_mulai
         date cuti_selesai
-        string status
+        datetime tanggal_daftar
+        text penundaan_catatan
     }
 
     PERANGKAT_INVENTARIS {
-        int id
+        bigint id
         string serial_number
         string mac_address
         string tipe_merk
         string jenis_perangkat
         string status
-        int posisi_user_id
-        int pelanggan_id
+        bigint posisi_user_id
+        bigint pelanggan_id
         string username_biasa
         string password_biasa
         string superadmin_username
@@ -1131,34 +1124,34 @@ erDiagram
     }
 
     RIWAYAT_PENGGANTIAN_ALAT {
-        int id
-        int pelanggan_id
-        int perangkat_lama_id
-        int perangkat_baru_id
-        int teknisi_user_id
+        bigint id
+        bigint pelanggan_id
+        bigint perangkat_lama_id
+        bigint perangkat_baru_id
+        bigint teknisi_user_id
         string alasan
-        int tiket_komplain_id
+        bigint tiket_komplain_id
         datetime tanggal_penggantian
     }
 
     REQUEST_PERUBAHAN_WIFI {
-        int id
-        int pelanggan_id
-        int requested_by_user_id
+        bigint id
+        bigint pelanggan_id
+        bigint requested_by_user_id
         string ssid_baru
         string password_baru
         string alasan
         string status
-        int approved_by_user_id
+        bigint approved_by_user_id
         datetime created_at
         datetime executed_at
     }
 
     BERITA_ACARA_INSTALASI {
-        int id
-        int pelanggan_id
-        int teknisi_user_id
-        int perangkat_id
+        bigint id
+        bigint pelanggan_id
+        bigint teknisi_user_id
+        bigint perangkat_id
         string nomor_dokumen
         string tanda_tangan_pelanggan
         string tanda_tangan_teknisi
@@ -1167,19 +1160,19 @@ erDiagram
     }
 
     DOMPET_PELANGGAN_MUTASI {
-        int id
-        int pelanggan_id
+        bigint id
+        bigint pelanggan_id
         string tipe
         bigint nominal
         bigint saldo_akhir
         string sumber
-        int referensi_id
+        bigint referensi_id
         string keterangan
     }
 
     POIN_MUTASI {
-        int id
-        int pelanggan_id
+        bigint id
+        bigint pelanggan_id
         string tipe
         int jumlah_poin
         int saldo_akhir
@@ -1188,30 +1181,30 @@ erDiagram
     }
 
     REQUEST_APPROVAL {
-        int id
+        bigint id
         string jenis_request
-        int pelanggan_id
-        int requester_user_id
+        bigint pelanggan_id
+        bigint requester_user_id
         string requester_role
         bigint nominal
         int poin
         string status
-        int approved_by_user_id
+        bigint approved_by_user_id
         datetime approved_at
         text keterangan
     }
 
     PELANGGAN_MIKROTIK {
-        int id
-        int pelanggan_id
-        int mikrotik_id
+        bigint id
+        bigint pelanggan_id
+        bigint mikrotik_id
         string tipe_koneksi
         string username_mk
         string ip_address
     }
 
     MIKROTIK {
-        int id
+        bigint id
         string nama_lokasi
         string ip_primary
         string ip_secondary
@@ -1225,15 +1218,15 @@ erDiagram
     }
 
     PAKET {
-        int id
+        bigint id
         string nama
-        int harga
+        bigint harga
         string kecepatan
     }
 
     TAGIHAN {
-        int id
-        int pelanggan_id
+        bigint id
+        bigint pelanggan_id
         string no_tagihan
         string public_token
         string tipe_tagihan
@@ -1259,28 +1252,36 @@ erDiagram
         string keterangan
     }
 
-    TRANSAKSI_PEMBAYARAN {
-        int id
-        int tagihan_id
-        bigint nominal_bayar
+    PEMBAYARAN {
+        bigint id
+        bigint pelanggan_id
+        bigint nominal
         string metode_bayar
-        int kolektor_id
+        bigint user_id
         string bukti_transfer
         string status_verifikasi
         string idempotency_key
         string gateway_transaction_id
         bigint reverses_id
-        int verified_by_user_id
         decimal latitude
         decimal longitude
         datetime tanggal_bayar
     }
 
+    ALOKASI_PEMBAYARAN {
+        bigint id
+        bigint pembayaran_id
+        bigint tagihan_id
+        bigint nominal
+    }
+
     KOLEKTOR {
-        int id
-        int user_id
+        bigint id
+        bigint user_id
         string nama
         string area
+        int level_wewenang
+        bigint batas_di_tangan
     }
 
     PERIODE_KAS {
@@ -1329,32 +1330,37 @@ erDiagram
     }
 
     LOG_API_MIKROTIK {
-        int id
-        int pelanggan_id
-        int mikrotik_id
+        bigint id
+        bigint pelanggan_id
+        bigint mikrotik_id
         string aksi
-        string ip_putus
+        string siklus_tagihan
+        int jumlah_tunggakan
+        date isolir_berikutnya
+        string ip_address
         datetime waktu
         string trigger_by
-        string status
+        string status_api
+        int jumlah_percobaan
+        date hari_mulai_putus
         string keterangan
     }
 
     AGENDA_GANGGUAN_MASSAL {
-        int id
+        bigint id
         string kode_agenda
         string judul
         string nama_area
         string tipe_cakupan
-        int cakupan_id
-        int mikrotik_id
+        bigint cakupan_id
+        bigint mikrotik_id
         text deskripsi_gangguan
         string status
-        int dibuat_oleh_user_id
+        bigint dibuat_oleh_user_id
         string target_monitor_tipe
-        int target_mikrotik_id
+        bigint target_mikrotik_id
         string target_sfp_interface
-        int target_pelanggan_id
+        bigint target_pelanggan_id
         datetime waktu_mulai
         datetime waktu_selesai
         text catatan_solusi
@@ -1362,28 +1368,28 @@ erDiagram
     }
 
     AGENDA_TEKNISI_ASSIGNMENT {
-        int id
-        int agenda_gangguan_id
-        int teknisi_user_id
+        bigint id
+        bigint agenda_gangguan_id
+        bigint teknisi_user_id
         string nama_tim
     }
 
     TIKET_KOMPLAIN {
-        int id
+        bigint id
         string no_tiket
-        int pelanggan_id
-        int pelapor_user_id
+        bigint pelanggan_id
+        bigint pelapor_user_id
         string kategori_gangguan
         text deskripsi
         string foto_kendala
         string tipe_kasus
-        int agenda_gangguan_id
+        bigint agenda_gangguan_id
         string target_monitor_tipe
-        int target_mikrotik_id
+        bigint target_mikrotik_id
         string target_sfp_interface
-        int target_pelanggan_id
+        bigint target_pelanggan_id
         string status
-        int verified_by_user_id
+        bigint verified_by_user_id
         datetime waktu_mulai
         datetime waktu_selesai
         text solusi_teknisi
@@ -1391,15 +1397,15 @@ erDiagram
     }
 
     TIKET_TEKNISI_ASSIGNMENT {
-        int id
-        int tiket_komplain_id
-        int teknisi_user_id
+        bigint id
+        bigint tiket_komplain_id
+        bigint teknisi_user_id
         bool is_penanggung_jawab
     }
 
     ABSENSI {
-        int id
-        int user_id
+        bigint id
+        bigint user_id
         date tanggal
         time jam_masuk
         time jam_pulang
@@ -1410,8 +1416,8 @@ erDiagram
     }
 
     PAYROLL_RECORD {
-        int id
-        int user_id
+        bigint id
+        bigint user_id
         string periode
         bigint gaji_pokok
         bigint bonus_pekerjaan
@@ -1450,8 +1456,8 @@ erDiagram
     }
 
     RESELLER {
-        int id
-        int user_id
+        bigint id
+        bigint user_id
         string nama
         string no_hp
         string nama_bank
@@ -1461,10 +1467,10 @@ erDiagram
     }
 
     DOMPET_RESELLER_MUTASI {
-        int id
-        int reseller_id
-        int tagihan_id
-        int pencairan_id
+        bigint id
+        bigint reseller_id
+        bigint tagihan_id
+        bigint pencairan_id
         string tipe
         bigint nominal
         bigint saldo_akhir
@@ -1472,12 +1478,12 @@ erDiagram
     }
 
     PENCAIRAN_RESELLER {
-        int id
-        int reseller_id
+        bigint id
+        bigint reseller_id
         bigint nominal
         string status
         string bukti_transfer
-        int admin_id
+        bigint admin_id
         datetime approved_at
     }
 
@@ -1506,8 +1512,9 @@ erDiagram
     MIKROTIK ||--o{ PELANGGAN_MIKROTIK : "menampung"
     PELANGGAN }o--|| PAKET : "berlangganan"
     PELANGGAN ||--o{ TAGIHAN : "punya"
-    TAGIHAN ||--o{ TRANSAKSI_PEMBAYARAN : "memiliki riwayat bayar"
-    TRANSAKSI_PEMBAYARAN }o--o| KOLEKTOR : "diterima oleh"
+    PELANGGAN ||--o{ PEMBAYARAN : "membayar"
+    PEMBAYARAN ||--o{ ALOKASI_PEMBAYARAN : "terbagi ke tagihan"
+    TAGIHAN ||--o{ ALOKASI_PEMBAYARAN : "menerima alokasi"
     USERS ||--o{ PERIODE_KAS : "memegang uang tunai"
     PERIODE_KAS ||--o{ MUTASI_KAS : "mencatat mutasi"
     PERIODE_KAS ||--o{ SETORAN : "disetor lewat"
@@ -1527,6 +1534,13 @@ erDiagram
     USERS ||--o{ AUDIT_LOG : "mencatat aksi"
 ```
 
+Kendala unik pada tabel:
+
+- `TAGIHAN`: `(pelanggan_id, tipe_tagihan, layanan_mulai)`, `no_tagihan`, dan `public_token`
+- `PEMBAYARAN`: `idempotency_key`, serta `gateway_transaction_id` bila terisi
+- `PERIODE_KAS`: `(user_id, periode)`
+- `RIWAYAT_ISOLIR`: satu baris dengan `nyala_kembali` kosong per pelanggan
+
 > [!NOTE]
 > Tabel pivot `pelanggan_mikrotik` adalah kunci dari arsitektur multi-Mikrotik. Tiap baris menyimpan tipe koneksi dan credential spesifik pelanggan **di Mikrotik tersebut** — karena username/IP bisa berbeda antar Mikrotik.
 
@@ -1538,11 +1552,11 @@ Aplikasi dirancang memenuhi standar **OWASP ASVS** untuk aplikasi jaringan dan f
 
 | Lapisan Keamanan | Implementasi Teknis |
 |---|---|
-| **Enkripsi rahasia** | Password API Mikrotik, SNMP community, PPPoE, WiFi, login biasa modem, dan super user modem disimpan dengan `Crypt::encryptString`. Ekspor pelanggan tidak memuat rahasia. Menyembunyikan kolom di layar tidak menggantikan Policy. |
+| **Enkripsi rahasia** | Password API Mikrotik, SNMP community, PPPoE, WiFi, `password_baru` pada ajuan WiFi, login biasa modem, dan super user modem disimpan dengan `Crypt::encryptString`. Audit perubahan WiFi tidak menyimpan nilai password. Ekspor pelanggan tidak memuat rahasia. Menyembunyikan kolom di layar tidak menggantikan Policy. |
 | **Dua akun API Mikrotik** | Akun isolir hanya boleh membaca dan menulis address-list. Akun NOC terpisah yang boleh mengubah interface hanya dipakai untuk matikan laser SFP, dan setiap aksi itu diaudit. |
 | **Integritas Finansial & Concurrency** | Mutasi uang (bayar, top-up, komisi) wajib dibungkus `DB::transaction()` dan **Pessimistic Locking (`lockForUpdate()`)** untuk kebal dari race condition / klik ganda. |
 | **Perlindungan Berkas Privat (KTP & Foto)** | Foto KTP dan berkas fisik disimpan di **Private Storage Disk**. Hanya dapat diakses lewat *Temporary Signed URL* bertenggat waktu oleh admin yang terotentikasi. |
-| **Pencegahan akses liar** | Policy membatasi kolektor dan admin wilayah ke `user_wilayah`. Halaman invoice publik memakai token acak 128 bit yang bisa diputar, bukan hash pendek. |
+| **Pencegahan akses liar** | Policy membatasi kolektor, admin wilayah, dan teknisi ke `user_wilayah` pada pelanggan, tiket, ekspor, peta, dan persetujuan pembayaran. Halaman invoice publik memakai token acak 128 bit yang bisa diputar. |
 | **Penyekatan Port Jaringan** | Port API 8728 di Mikrotik difilter via firewall RouterOS: hanya menerima koneksi dari IP lokal kabel server dan IP tunnel WireGuard server. |
 | **Audit Trail Forensik** | Semua aksi sensitif (isolir manual, approval bypass, perubahan komisi, approval top-up) tercatat di tabel audit log beserta user ID, IP address, dan timestamp. |
 
@@ -1608,7 +1622,7 @@ flowchart TD
 
 #### 1B. Failover adalah prosedur infrastruktur
 
-Aplikasi tidak mempromosikan database, tidak mengklon data dari browser, dan tidak menutup split-brain. Replikasi, DNS, dan WireGuard dioperasikan di server. Pembayaran menyimpan `idempotency_key` unik supaya pengiriman ulang tidak membuat dua jurnal. Antrian isolir memakai database queue agar job yang belum selesai ikut salinan database. Alert pergantian server, bila ada, dikirim lewat Telegram oleh pemantau infrastruktur, bukan oleh tombol di Laravel.
+Aplikasi tidak mempromosikan database, tidak mengklon data dari browser, dan tidak menutup split-brain. Replikasi, DNS, dan WireGuard dioperasikan di server. Satu `PEMBAYARAN` menyimpan `idempotency_key` unik. Pengiriman ulang tidak membuat pembayaran kedua. Antrian isolir memakai database queue agar job yang belum selesai ikut salinan database. Alert pergantian server, bila ada, dikirim lewat Telegram oleh pemantau infrastruktur, bukan oleh tombol di Laravel.
 
 #### 2. Sinkronisasi File & Lampiran (Foto KTP & Bukti Transfer)
 * Menggunakan **S3-Compatible Object Storage** (seperti Cloudflare R2 / MinIO / AWS S3):
@@ -1643,8 +1657,8 @@ Aplikasi tidak mempromosikan database, tidak mengklon data dari browser, dan tid
 | **Frontend Admin/Kolektor** | Livewire + Tailwind CSS |
 | **Frontend Portal Pelanggan** | Livewire + Tailwind CSS *(atau Vue.js SPA di fase lanjut)* |
 | **Database** | MySQL / PostgreSQL |
-| **Job Scheduler** | Laravel Scheduler + Queue (untuk paralel job isolir) |
-| **Mikrotik API** | `evilfreelancer/routeros-api-php` |
+| **Job Scheduler** | Laravel Scheduler + database queue. Satu Mikrotik satu sesi API. |
+| **Mikrotik API** | `evilfreelancer/routeros-api-php`. Versi dikunci di `composer.json` saat proyek Laravel dibuat. Panggilan memakai kalimat API, misalnya `/interface/ethernet/print` dengan `?name`. |
 | **Auth & Role** | Laravel Breeze + Spatie Laravel Permission |
 | **Queue Driver** | Database queue untuk isolir dan pembayaran, supaya job ikut replikasi database. |
 | **Server** | VPS dengan WireGuard aktif |
@@ -1672,7 +1686,7 @@ Aplikasi tidak mempromosikan database, tidak mengklon data dari browser, dan tid
 | **Tahap 4** | Modul Tagihan & Generate Bulanan |  |
 | **Tahap 5** | Modul Pembayaran (Cash + Transfer) |  |
 | **Tahap 6** | Modul Kolektor & Setoran |  |
-| **Tahap 7** | Isolir & Reaktivasi — Paralel ke Multi-Mikrotik via Address-List |  |
+| **Tahap 7** | Isolir dan reaktivasi lewat antrean, satu sesi API per Mikrotik |  |
 | **Tahap 8** | Portal Pelanggan (inti) |  |
 | **Tahap 9** | Dashboard, Laporan, Export |  |
 | **Tahap 10** | Testing, hardening, deployment |  |

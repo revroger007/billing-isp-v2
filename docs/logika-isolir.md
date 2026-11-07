@@ -1,6 +1,6 @@
 # Spesifikasi Logika Isolir
 
-> Versi: 2.10 | Tanggal: 6 November 2026
+> Versi: 2.11 | Tanggal: 7 November 2026
 > Sistem: pra-bayar
 > Mekanisme: IP statis dimasukkan ke address-list Mikrotik. Semua pelanggan memakai IP statis. Kolom `tipe_koneksi` hanya catatan teknis dan tidak mengubah cara isolir.
 
@@ -30,7 +30,7 @@ Scheduler melewati pelanggan bila salah satu ini berlaku:
 
 Pada tanggal `isolir_ditunda_hingga` sendiri, job pukul 00:05 mengisolir bila pembayaran yang membatalkan penundaan belum tercatat. Pembayaran yang masuk kemudian pada hari yang sama tetap diproses dan dapat menyalakan layanan lagi.
 
-Pada tanggal 1, generate tagihan dan autopay dompet berjalan pukul 00:01 Asia/Jakarta. Isolir berjalan pukul 00:05. Keduanya tidak boleh tumpang tindih. Autopay yang membuat tagihan lunas selesai sebelum antrean putus ditulis, supaya pelanggan yang saldonya cukup tidak diputus.
+Pada tanggal 1, generate tagihan dan autopay dompet mulai pukul 00:01 Asia/Jakarta dengan `withoutOverlapping()`. Job isolir tanggal 1 dimulai oleh job itu setelah autopay terakhir commit. Job isolir tidak memakai jam 00:05 pada tanggal 1. Hari lain, job isolir berjalan pukul 00:05 dengan `withoutOverlapping()`. Autopay yang membuat tagihan lunas selesai sebelum antrean putus ditulis.
 
 Job isolir membandingkan tanggal kalender Jakarta, bukan tanggal UTC.
 
@@ -38,7 +38,7 @@ Job isolir membandingkan tanggal kalender Jakarta, bukan tanggal UTC.
 
 `hitung_isolir_berikutnya` hanya menghitung tanggal dan jumlah tunggakan. Pembayaran, cuti, toleransi, bypass, dan tombol simulasi memanggil fungsi ini. Fungsi ini tidak menghubungi Mikrotik.
 
-`alokasi_pembayaran` adalah satu-satunya fungsi yang membagi uang ke tagihan. Uang melunasi tagihan `langganan` yang belum lunas, urut `jatuh_tempo` terlama, lalu `layanan_mulai`. Sisa uang yang tidak menutup tagihan berikutnya tetap `sebagian` pada tagihan itu. `N` adalah jumlah tagihan langganan yang menjadi `lunas` oleh pembayaran ini. Pembayaran yang tidak membuat satu tagihan pun lunas tidak menggeser `isolir_berikutnya` dan tidak menghapus penundaan toleransi. Tagihan dan pelanggan dikunci `lockForUpdate` di transaksi yang sama.
+`alokasi_pembayaran` adalah satu-satunya fungsi yang membagi uang ke tagihan. Satu penerimaan uang membuat satu baris `PEMBAYARAN` dengan `idempotency_key` unik. `gateway_transaction_id` yang terisi juga unik. Baris `ALOKASI_PEMBAYARAN` mencatat nominal per tagihan. Uang melunasi tagihan `langganan` yang belum lunas, urut `jatuh_tempo` terlama, lalu `layanan_mulai`. Sisa uang yang tidak menutup tagihan berikutnya tetap `sebagian` pada tagihan itu. `N` adalah jumlah tagihan langganan yang menjadi `lunas` oleh pembayaran ini. Tidak ada pilihan `N` di layar. Pembayaran yang tidak membuat satu tagihan pun lunas tidak menggeser `isolir_berikutnya` dan tidak menghapus penundaan toleransi. Tagihan, pembayaran, dan pelanggan dikunci `lockForUpdate` di transaksi yang sama.
 
 `putuskan_layanan` dan `nyalakan_layanan` adalah satu-satunya fungsi yang menulis address-list. Keduanya mencatat hasil per router. Status pelanggan menjadi `putus` atau `nyala` hanya setelah semua router yang dituju sukses. `nyalakan_layanan` membatalkan baris putus yang belum dijalankan untuk pelanggan dan router yang sama, supaya antrean lama tidak memutus lagi setelah pelanggan bayar.
 
@@ -56,9 +56,9 @@ Satu tagihan dihitung tunggakan bila statusnya `belum_bayar`, `sebagian`, atau `
 jumlah = jumlah tagihan langganan yang belum lunas dan jatuh temponya sudah sampai
 
 Jika batas_tunggakan berisi 1 atau 2 dan hari ini >= isolir_berikutnya:
-    Jika jumlah >= batas dan pelanggan belum putus:
+    Jika jumlah >= batas dan status_layanan salah satu dari nyala, gagal_putus:
         putuskan_layanan
-    Jika jumlah < batas dan pelanggan putus oleh scheduler:
+    Jika jumlah < batas dan sumber_putus = scheduler dan status_layanan bukan nyala:
         nyalakan_layanan
 ```
 
@@ -74,9 +74,9 @@ Di luar penundaan toleransi, perpanjangan adalah `N x 30` hari kalender, bukan t
 Jika hari ini >= isolir_berikutnya dan pelanggan belum putus:
     putuskan_layanan
 
-Jika pelanggan masih nyala saat bayar:
+Jika pelanggan masih nyala saat bayar dan N >= 1:
     isolir_berikutnya = isolir_berikutnya + (N x 30 hari)
-Jika pelanggan sedang putus saat bayar dan tidak sedang ditunda:
+Jika N >= 1 dan sumber_putus bukan manual dan status_layanan salah satu dari putus, tidak_serempak, gagal_putus, gagal_nyala, menunggu_router dan tidak sedang ditunda:
     isolir_berikutnya = tanggal pembayaran + (N x 30 hari)
     nyalakan_layanan
 ```
@@ -99,7 +99,7 @@ Pada tanggal `isolir_berikutnya` itu sendiri, job pukul 00:05 WIB sudah memutus.
     layanan dinyalakan
 ```
 
-Jika nominal mencakup dua bulan atau lebih, admin atau kolektor memilih cicil tunggakan (`N = 1`) atau bayar tagihan rutin (`N` = jumlah bulan). Sisa tagihan tetap menunggak. `batas_tunggakan` tidak dibaca selama siklus ini. Bila siklus dikembalikan ke `tanggal_tetap`, tunggakan yang tersisa langsung dipakai.
+`N` hanya dihitung oleh `alokasi_pembayaran`. Sisa tagihan yang belum lunas tetap menunggak. `batas_tunggakan` tidak dibaca selama siklus ini. Bila siklus dikembalikan ke `tanggal_tetap`, tunggakan yang tersisa langsung dipakai.
 
 Pembayaran selama penundaan beralasan `toleransi` tidak memakai rumus 30 hari. `isolir_berikutnya` diisi tanggal `hari_isolir` berikutnya.
 
@@ -109,7 +109,7 @@ Setiap router pelanggan punya satu baris log. IP selalu diambil dari `pelanggan_
 
 ## Antrian perintah
 
-Job pukul 00:05 hanya menulis baris antrian di database, satu baris per pelanggan per Mikrotik, lalu status pelanggan menjadi `menunggu_router`. Job itu tidak membuka koneksi API.
+Job isolir hanya menulis baris antrian di database, satu baris per pelanggan per Mikrotik, lalu status pelanggan menjadi `menunggu_router`. Setiap baris menyimpan `hari_mulai_putus`, yaitu tanggal Asia/Jakarta saat baris ditulis. Job itu tidak membuka koneksi API.
 
 Setiap Mikrotik punya satu pekerja. Pekerja router yang berbeda boleh berjalan bersamaan. Pada satu router hanya ada satu koneksi API pada satu waktu. Perintah 1000 pelanggan di router yang sama tidak dibuka sebagai 1000 koneksi.
 
@@ -178,6 +178,7 @@ stateDiagram-v2
 
     Putus --> MenungguRouter: Syarat nyala terpenuhi
     TidakSerempak --> MenungguRouter: Ulang manual
+    TidakSerempak --> MenungguRouter: Syarat putus gugur
     GagalPutus --> MenungguRouter: Ulang manual
     GagalPutus --> MenungguRouter: Syarat putus gugur
 
@@ -203,6 +204,7 @@ Tambahan pada `pelanggan`:
 | `penundaan_catatan` | text atau null | Keterangan toleransi atau bypass. |
 | `penundaan_disetujui_oleh` | bigint atau null | Wajib bila alasan `bypass`. |
 | `isolir_mulai_evaluasi` | date atau null | Scheduler mengabaikan pelanggan sebelum tanggal ini. |
+| `tanggal_daftar` | datetime | Waktu pendaftaran. Terpisah dari `tanggal_instalasi`. |
 
 `log_api_mikrotik` satu baris per percobaan per Mikrotik: siklus saat itu, jumlah tunggakan, salinan `isolir_berikutnya`, IP yang ditulis, `status_api` (`pending`, `sukses`, `gagal`), dan `jumlah_percobaan`.
 

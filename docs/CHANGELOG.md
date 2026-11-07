@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-11-07
+
+- `N` hanya dihitung dari tagihan yang menjadi lunas. Isolir tanggal 1 berjalan setelah autopay selesai.
+- Satu `PEMBAYARAN` terbagi ke banyak `ALOKASI_PEMBAYARAN`.
+- `tidak_serempak` ikut nyala bila syarat putus gugur. Perpanjangan satu bulan menulis `isolir_ditunda_hingga`.
+- Tagihan unik per rentang layanan. Prorata dan komisi memakai integer. Potongan memakai `hari_mulai_putus`.
+- `tanggal_daftar`, `penundaan_catatan`, dan `status_langganan` terpisah dari status isolir.
+- Log API, kolektor, SNMP cadangan, webhook, WiFi, Google, dan batas wilayah diselaraskan. Primary key dan kolom rupiah memakai `bigint`.
+
 ## 2026-11-06
 
 Spesifikasi diselaraskan dengan review rancangan.
