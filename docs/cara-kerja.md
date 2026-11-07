@@ -1,6 +1,6 @@
 # 🌐 Rancangan Aplikasi Billing Internet — Microprovider / Mini ISP
 
-> Versi: 2.26 — Tahap 1: Definisi Fitur
+> Versi: 2.27 — Tahap 1: Definisi Fitur
 > Tanggal: 7 November 2026
 
 Keputusan yang mengunci uang, isolir, peran, dan batas tahap awal ada di `docs/decisions/001-keputusan-review-spesifikasi.md`. Jika kalimat di bawah berbeda dengan keputusan itu, keputusan yang dipakai.
@@ -743,7 +743,7 @@ Aplikasi billing dilengkapi modul terpadu untuk mengelola koneksi API ke server 
   `⚠️ [PERINGATAN: SERVER ACS DOWN] Server GenieACS (10.200.0.5:7557) tidak merespons API health check. Diagnosa redaman modem pelanggan via TR-069 sementara tidak tersedia.`
 * **Ketahanan Sistem (*Graceful Degradation* & Proteksi Anti-False Alarm):**
   1. **Dilarang Berubah Merah di Peta:** Jika server ACS bermasalah/mati, pin lokasi pelanggan di peta **DILARANG BERUBAH MENJADI MERAH**. Server ACS mati bukan berarti kabel optik putus atau internet warga padam. Warna pin tetap mengacu pada status konektivitas Mikrotik (jika sesi PPPoE/IP pelanggan masih aktif, pin tetap 🟢 Hijau).
-  2. **Sembunyikan Nilai Redaman ACS:** Di jendela popup pin peta, nilai redaman otomatis disembunyikan dan digantikan teks keterangan abu-abu netral: `[ℹ️ Redaman: ACS Server Offline]`.
+  2. **Cek live gagal tanpa mengubah pin:** Popup tidak menyimpan angka redaman. Bila cek yang sedang diminta gagal karena ACS mati, layar menampilkan `[ℹ️ Redaman: ACS Server Offline]` lalu mencoba SNMP OLT bila `snmp_supported = true`.
   3. **Tombol Live Disable Sementara:** Tombol cek modem via ACS dinonaktifkan sementara dengan status badge informatif.
   4. **Nol Crash:** Sistem billing **tidak akan pernah hang, crash, atau melempar fatal error** saat server ACS padam.
 
@@ -752,7 +752,7 @@ Karena di lapangan tipe router/modem pelanggan sangat beragam (tidak semua modem
 
 | Kondisi Perangkat Pelanggan | Perlakuan di Aplikasi Billing |
 |---|---|
-| **Modem Support ACS & Sudah Terintegrasi** | • **Informasi Redaman Otomatis Tampil:** Muncul indikator sinyal optik *real-time* (contoh: `🟢 -19.4 dBm`) lengkap dengan voltase, suhu modem, dan tombol refresh sinyal.<br>• **Fitur Tambahan Aktif:** Ganti SSID, password WiFi, dan reboot modem hanya lewat ajuan yang diverifikasi NOC. Portal pelanggan tidak menerima tombol itu. |
+| **Modem Support ACS & Sudah Terintegrasi** | • **Redaman hanya saat diminta:** Profil tidak menampilkan angka dengan sendirinya. Tombol cek live membaca ACS saat ditekan, menampilkan hasil di layar, dan tidak menulis `PELANGGAN`.<br>• **Fitur Tambahan Aktif:** Ganti SSID, password WiFi, dan reboot modem hanya lewat ajuan yang diverifikasi NOC. Portal pelanggan tidak menerima tombol itu. |
 | **Modem Belum / Tidak Support ACS** | • Informasi redaman ACS otomatis disembunyikan agar tidak membingungkan staf lapangan.<br>• Profil pelanggan berlabel *Non-ACS (Router Standar)*.<br>• Tersedia form opsional: **`[Tautkan Serial Number ACS]`** jika suatu saat pelanggan melakukan upgrade modem ke tipe yang mendukung TR-069. |
 
 ##### 4. Alternatif & Cadangan Emas: Cek Redaman Langsung via SNMP OLT (Direct Hardware Query)
@@ -794,6 +794,8 @@ flowchart TD
     CHECK_SNMP_OPTIONAL -->|TIDAK, Non-SNMP| MANUAL_FALLBACK["Tampilkan: 'Redaman Otomatis Tidak Tersedia'\nAktifkan Tombol: [📲 WA NOC] & [💬 Chat Internal NOC]"]
 ```
 
+Hasil cek live, grafik, dan balasan chat hanya tampil pada saat diminta. Tidak ada kolom redaman di `PELANGGAN`. Angka tidak ditulis kembali ke pelanggan setelah layar ditutup.
+
 * **Manfaat Pengaturan Ini:**
   1. **Fokus Operasional Bersih:** Sistem secara *default* langsung mengandalkan GenieACS TR-069 untuk seluruh modem pelanggan tanpa kebingungan konfigurasi OLT.
   2. **Cadangan per OLT:** OLT dengan `snmp_supported = true` langsung dipakai sebagai cadangan. OLT yang flag-nya false tidak di-query.
@@ -817,7 +819,7 @@ sequenceDiagram
     TEK->>APP: Buka Tugas di HP -> Tekan Tombol Besar [⚡ REFRESH REDAMAN SPLICING]
     APP->>SFP: Baca DDM SFP via SNMP Mikrotik (atau ACS jika Target Modem)
     SFP-->>APP: Hasil: -18.2 dBm
-    APP-->>TEK: Layar HP Berkedip Hijau: 🟢 -18.2 dBm (IDEAL!)
+    APP-->>TEK: Layar HP Berkedip Hijau: 🟢 -18.2 dBm (IDEAL, tidak disimpan)
     
     Note over TEK: Teknisi Langsung Rapikan Box ODP Tanpa Perlu Telepon NOC!
 ```
@@ -873,12 +875,11 @@ flowchart TD
     end
 
     subgraph BILLING_APP["4. Aplikasi Billing & Operasional Lapangan (Zero-Storage Time-Series)"]
-        WH --> APP_INGEST["Update 'latest_rx_power' & 'optical_status' di Tabel Pelanggan\n(Hanya simpan status terakhir, database bebas bloat!)"]
-        APP_INGEST --> MAP["🗺️ Peta GIS: Pin Pelanggan Berubah Kuning / Merah"]
-        APP_INGEST --> PREVENTIVE["🔧 Auto-Generate 'Tiket Pemeliharaan Preventif'\n(Disposisi Teknisi Sebelum Komplain Datang)"]
+        WH --> TIKET["Buat tiket preventif bila belum ada tiket terbuka untuk ONU itu\nAngka dBm hanya di teks tiket, PELANGGAN tidak diubah"]
+        TIKET --> MAP["Lapisan optik membaca problem Zabbix saat dibuka\nTidak menulis warna ke pelanggan"]
         
         NOC_LIVE["NOC / Teknisi Klik [⚡ Cek Redaman Live] di Peta"] -->|On-Demand Query 1 Pelanggan| OLT
-        NOC_SPARK["NOC / Teknisi Klik [📈 Tren 7 Hari] di Peta"] -->|On-Demand Zabbix API: trend.get\n(Cache Laravel 60 Mnt)| ZABBIX
+        NOC_SPARK["NOC / Teknisi Klik [📈 Tren 7 Hari] di Peta"] -->|On-Demand Zabbix API: trend.get\nTidak ditulis ke database| ZABBIX
     end
 ```
 
@@ -886,10 +887,10 @@ flowchart TD
 
 | Status | Rentang Rx Power (dBm) | Warna Peta | Dampak Jaringan | Tindakan Sistem Billing |
 |---|---|---|---|---|
-| **Normal / Prima** | lebih besar dari $-23.0$ dBm sampai $-15.0$ dBm | 🟢 **Emerald (Hijau)** | Koneksi sangat stabil, tidak ada jitter/packet loss. | Status normal, update timestamp monitoring. |
-| **Warning (Drop Mendekati Batas)** | $-23.0$ dBm sampai lebih besar dari $-27.0$ dBm | 🟡 **Amber (Kuning)** | Masih hidup tapi rentan fluktuatif saat hujan/suhu tinggi (margin aman menipis). | Marker peta berubah kuning. Terbitkan **Tiket Preventif** jika bertahan > 30 menit. |
-| **Kritis (Over-Limit / Rusak)** | $\le -27.0\text{ dBm}$ | 🔴 **Rose (Merah)** | ONT mengalami link drop berulang (*frequent disconnect*), paket loss tinggi, throughput anjlok. | Marker peta merah berkedip. Prioritas darurat perbaikan tiang/kabel drop. |
-| **LOS / Putus Total** | $\le -35.0\text{ dBm}$ atau Link Down | ⚫ **Zinc (Abu-abu Gelap)** | Sinyal hilang total (core putus, konektor tercabut, atau listrik padam). | Marker abu-abu. Cek apakah induk ODP atau rumah tetangga terdampak bersamaan. |
+| **Normal / Prima** | lebih besar dari $-23.0$ dBm sampai $-15.0$ dBm | 🟢 **Emerald (Hijau)** | Koneksi sangat stabil, tidak ada jitter/packet loss. | Tidak menulis pelanggan. Angka hanya tampil bila cek live diminta. |
+| **Warning (Drop Mendekati Batas)** | $-23.0$ dBm sampai lebih besar dari $-27.0$ dBm | 🟡 **Amber (Kuning)** | Masih hidup tapi rentan fluktuatif saat hujan/suhu tinggi (margin aman menipis). | Zabbix mengirim webhook bila kondisi bertahan lebih dari 30 menit. Billing membuat tiket preventif. |
+| **Kritis (Over-Limit / Rusak)** | $\le -27.0\text{ dBm}$ | 🔴 **Rose (Merah)** | ONT mengalami link drop berulang (*frequent disconnect*), paket loss tinggi, throughput anjlok. | Webhook membuat tiket darurat. Warna hanya muncul saat lapisan optik dibuka. |
+| **LOS / Putus Total** | $\le -35.0\text{ dBm}$ atau Link Down | ⚫ **Zinc (Abu-abu Gelap)** | Sinyal hilang total (core putus, konektor tercabut, atau listrik padam). | Webhook membuat tiket. Pemeriksaan mengecek ODP induk dan tetangga lewat problem Zabbix, bukan lewat kolom pelanggan. |
 
 ---
 
@@ -899,22 +900,22 @@ Peta GIS Leaflet.js di billing tidak hanya menampilkan sebaran lokasi geografis,
 
 ##### 1. Fitur Interaktif Lapisan Redaman (*Optical Layer Map*)
 
-* **Pin Marker Dinamis Berbasis Status Redaman:** Setiap pin rumah pelanggan di peta memiliki cincin warna semantik (🟢 Hijau, 🟡 Kuning, 🔴 Merah, ⚫ Abu-abu) yang mencerminkan kondisi redaman mutakhir.
+* **Pin mengikuti sesi internet:** Warna bawaan pin adalah status koneksi Mikrotik. Redaman tidak mewarnai pin dari data tersimpan.
 * **Filter Khusus Sinyal Optik (*Quick Fault Filter*):**
   * `[ ] Semua Pelanggan`
-  * `[ ] Tampilkan Hanya Redaman Warning & Kritis (≤ -23 dBm)` $\rightarrow$ **Fitur Diagnosa Sakti:** Seketika di peta hanya muncul rumah-rumah yang sinyalnya sekarat.
+  * `[ ] Tampilkan Hanya Redaman Warning & Kritis (≤ -23 dBm)` $\rightarrow$ Lapisan ini, saat dinyalakan, meminta problem yang sedang terbuka di Zabbix sekali. Pin yang cocok diwarnai untuk tampilan itu. Hasil tidak ditulis ke `PELANGGAN`.
   * *Manfaat Nyata:* Jika NOC melihat ada 6 rumah dalam 1 gang sama-sama berwarna kuning/merah, NOC langsung menyimpulkan bahwa **splitter atau kabel feeder gang tersebut tertekuk**, bukan masalah di dalam rumah pelanggan!
 * **Popup Marker Utilitarian (Monospace & Aksi Cepat):**
   Saat pin pelanggan diklik, jendela informasi ringkas menampilkan:
   * **Nama & No. Pelanggan:** `Pak Budi (CUST-00123)`
   * **Sumber Jalur:** `ODP-KRJ-03 (Port 4)` atau `Sub-Splitter Rumah Pak RT`
-  * **Nilai Redaman:** `RX: -24.8 dBm` (🟡 Amber) | `TX: 2.1 dBm` (Diperbarui: 5 mnt lalu).<br>*Jika Server ACS Bermasalah/Offline:* Baris angka redaman disembunyikan dan digantikan badge netral: `[ℹ️ Redaman: ACS Server Offline]`. Pin pelanggan **TIDAK berubah menjadi merah** (warna pin tetap hijau jika sesi internet di Mikrotik masih UP) demi mencegah kepanikan dan alarm palsu (*anti-false alarm*).
+  * **Nilai Redaman:** tidak tampil sebelum tombol cek ditekan. Setelah ditekan, layar menampilkan hasil saat itu, misalnya `RX: -24.8 dBm`, lalu membuangnya saat popup ditutup.<br>*Jika Server ACS Bermasalah/Offline:* cek live menampilkan `[ℹ️ Redaman: ACS Server Offline]` dan mencoba SNMP bila OLT mendukung. Pin pelanggan **TIDAK berubah menjadi merah** (warna pin tetap hijau jika sesi internet di Mikrotik masih UP) demi mencegah kepanikan dan alarm palsu (*anti-false alarm*).
   * **Tombol Aksi Ramah Lapangan:**
     * **`[⚡ Cek Redaman Live]`**: Mengirim query *on-demand* ke OLT/GenieACS untuk membaca redaman saat itu juga (umpan balik instan 1 detik).
     * **`[📲 Minta Bantuan Cek (WA)]`**: 1-Klik membuka WhatsApp ke nomor NOC dengan pesan terformat otomatis lengkap (Nama, ID Pelanggan, OLT, Port PON, ONU ID, dan Alamat).
     * **`[📋 Salin Format Teks]`**: Menyalin teks instruksi permohonan cek redaman ke clipboard untuk dikirim manual lewat channel apapun.
     * **`[💬 Kirim ke Chat Internal NOC]`**: Mengirim permintaan data interaktif langsung ke panel Chat Internal NOC di dalam aplikasi billing.
-    * **`[📈 Riwayat Sinyal 7 Hari]`**: Menampilkan popover grafik mini sparkline tren naik-turunnya redaman selama 7 hari terakhir (168 titik rata-rata per jam). **Arsitektur Pilihan 1 (Zero-Storage di Billing):** Data ditarik secara *on-demand* via Zabbix Trends API (`trend.get`) lalu di-cache oleh Laravel selama 60 menit. Database aplikasi billing bebas 100% dari jutaan baris data time-series, menjamin performa query tagihan dan keuangan tetap sangat cepat.
+    * **`[📈 Riwayat Sinyal 7 Hari]`**: Menampilkan grafik 7 hari saat tombol ditekan. Angka ditarik dari Zabbix Trends API (`trend.get`) dan tidak ditulis ke database billing.
     * **`[🎫 Buat Tiket Teknisi]`**: Langsung membuka form tiket terisi otomatis dengan koordinat dan nilai redaman yang drop.
 
 ---
@@ -1226,10 +1227,6 @@ erDiagram
         string acs_device_id
         decimal latitude
         decimal longitude
-        decimal latest_rx_power
-        decimal latest_tx_power
-        string optical_status
-        datetime optical_updated_at
         string username_koneksi
         string password_koneksi
         string tipe_merk_alat

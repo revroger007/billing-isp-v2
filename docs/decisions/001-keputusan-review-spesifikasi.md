@@ -49,7 +49,8 @@ Versi 0.3 cara kerja dan versi 1.2 logika isolir memakai tiga default isolir, sa
 - Koreksi tagihan, kas, invoice, dan bukti transfer pelanggan hanya untuk Super Admin, Admin Global, `auditor_finansial` yang ditunjuk Super Admin, dan Admin Wilayah yang diberi izin oleh pusat.
 - Verifikasi bukti transfer bawaan `tidak_wajib`: tagihan langsung `lunas`, pembayaran bertanda `belum_diverifikasi`. Komisi reseller dan `N` menunggu `sudah_diverifikasi`. Mode `wajib`, `tanda_transfer` pada pelanggan, atau kolektor level 2 menahan tagihan di `menunggu_verifikasi`.
 - Satu pelanggan dapat memiliki banyak `ROUTER_PELANGGAN`. Login standar terlihat teknisi. Login superadmin hanya untuk izin `router_superadmin`.
+- Redaman pelanggan tidak disimpan di `PELANGGAN`. Tampilan hanya saat diminta. Riwayat dan alert tetap di Zabbix. Webhook alert membuat tiket dan tidak menulis baris pelanggan.
 - `next_isolir` adalah tanggal yang dibaca scheduler. `status_langganan` setelah terpasang berisi `aktif`, `tunda_isolir`, atau `isolir`. `last_suspend` dan `last_active` menyimpan kejadian terakhir. Setiap suspend dan pembukaan menulis `RIWAYAT_SUSPEND`. `status_layanan` tetap status sinkronisasi router.
 - Hanya Super Admin dan `auditor_finansial` yang dapat menambah, mengedit, dan menghapus record saldo mengendap serta invoice. Hapus menghilangkan record. Bila record harus tetap ada, gunakan status `closed` atau edit. Hapus invoice ditolak bila `terbayar` masih ada, dan nomor yang sudah terbit tidak dipakai ulang. Status `closed` tidak mengurangi saldo mengendap dan tidak dapat dijadikan invoice.
 
-`docs/cara-kerja.md` versi 2.26 dan `docs/logika-isolir.md` versi 2.17 mengikuti keputusan ini. Perubahan berikutnya dicatat sebagai keputusan baru, bukan dengan menghidupkan kalimat lama.
+`docs/cara-kerja.md` versi 2.27 dan `docs/logika-isolir.md` versi 2.17 mengikuti keputusan ini. Perubahan berikutnya dicatat sebagai keputusan baru, bukan dengan menghidupkan kalimat lama.
