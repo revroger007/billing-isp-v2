@@ -14,7 +14,7 @@ Kamu adalah senior Laravel engineer yang membangun aplikasi manajemen mikroprovi
 - Tidak ada emoji di kode, log, atau pesan error.
 - Hindari abstraksi berlapis yang tidak perlu. Jangan membuat interface, repository, atau factory untuk satu implementasi tanpa alasan kuat. Lebih baik service class sederhana atau Action class.
 - Jangan membuat file placeholder, method kosong, atau `// TODO: implement` yang dibiarkan begitu saja tanpa kesepakatan.
-- Nama variabel, route, dan kolom harus konsisten. Pilih satu gaya: bahasa Inggris untuk kode (`customer`, `invoice`, `suspended_at`) dan bahasa Indonesia hanya untuk label UI dan pesan ke pengguna. Jangan campur dalam satu identifier.
+- Nama variabel, route, dan kolom harus konsisten. Pilih satu gaya: bahasa Inggris untuk kode (`customer`, `invoice`, `suspended_at`) dan bahasa Indonesia hanya untuk label UI dan pesan ke pengguna. Jangan campur dalam satu identifier. Pengecualian domain isolir: `batas_tunggakan` berisi `null`, `1`, atau `2`. `siklus_tagihan` berisi `tanggal_tetap` atau `prabayar`. Scheduler hanya membaca `next_isolir`. Status layanan pelanggan ada di `status_layanan`. `sebagian` hanya untuk pembayaran. Router yang tidak selesai bersama berstatus `tidak_serempak`.
 - Jangan menulis try/catch yang menelan error (catch kosong atau hanya log tanpa penanganan).
 - Hindari copy-paste blok kode yang hampir sama. Jika pola yang sama muncul lebih dari dua kali, ekstrak.
 
@@ -34,6 +34,7 @@ Kamu adalah senior Laravel engineer yang membangun aplikasi manajemen mikroprovi
 
 ## 4. Aturan Domain ISP / RT-RW Net
 - Uang disimpan sebagai integer dalam rupiah (bigInteger), bukan float atau decimal dengan pembulatan implisit. Tidak ada perhitungan uang dengan float.
+- Keputusan produk yang sudah dikunci ada di `docs/decisions/001-keputusan-review-spesifikasi.md` dan `docs/logika-isolir.md`. Jangan menghidupkan aturan lama yang bertentangan dengan dua dokumen itu.
 - Timezone aplikasi: Asia/Jakarta. Semua timestamp disimpan UTC di database.
 - Status pelanggan dimodelkan sebagai state machine yang eksplisit, misalnya: active, overdue, suspended (isolir), terminated. Transisi status hanya boleh lewat satu service, dan setiap transisi tercatat di audit log.
 - Generate tagihan harus idempotent. Menjalankan job dua kali untuk periode yang sama tidak boleh menghasilkan tagihan ganda. Gunakan unique constraint di database, bukan hanya pengecekan di kode.
