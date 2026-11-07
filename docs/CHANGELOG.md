@@ -2,7 +2,7 @@
 
 ## 2026-11-07
 
-- Saldo mengendap yang ditutup berstatus `closed`. Saldo tidak berkurang. Baris `closed` tidak dapat menjadi tagihan. Hanya Super Admin dan `auditor_finansial` yang dapat membuka, mengonversi, menambah, atau menghapus catatan itu.
+- Super Admin dan `auditor_finansial` dapat mengoreksi saldo mengendap, membuat invoice dari saldo itu, dan menghapus catatannya. Koreksi menulis baris baru. Hapus tidak menghilangkan riwayat.
 - Saldo mengendap dan tagihan dapat dikonversi dua arah. Catatan asal tetap ada. Konversi ke tagihan mengurangi saldo. Konversi dari tagihan menambah saldo.
 - Bukti transfer bawaan langsung `lunas` dengan tanda `belum_diverifikasi`. Mode wajib, tanda pelanggan, atau kolektor level 2 menahan status `menunggu_verifikasi`.
 - Prorata, diskon, biaya aktivasi, dan prorata aktivasi prabayar masuk `HUTANG_MENGENDAP`, bukan invoice. Saldo itu untuk evaluasi dan tidak menjadi piutang.

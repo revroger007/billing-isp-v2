@@ -1,6 +1,6 @@
 # 🌐 Rancangan Aplikasi Billing Internet — Microprovider / Mini ISP
 
-> Versi: 2.19 — Tahap 1: Definisi Fitur
+> Versi: 2.20 — Tahap 1: Definisi Fitur
 > Tanggal: 7 November 2026
 
 Keputusan yang mengunci uang, isolir, peran, dan batas tahap awal ada di `docs/decisions/001-keputusan-review-spesifikasi.md`. Jika kalimat di bawah berbeda dengan keputusan itu, keputusan yang dipakai.
@@ -137,11 +137,13 @@ Status `mengendap` dan `closed` sama-sama tetap di dalam saldo. Menutup baris, t
 
 Pemegang `koreksi_keuangan` dapat menutup baris menjadi `closed`. Admin Wilayah hanya untuk dusun di `user_wilayah`.
 
-Hanya Super Admin dan `auditor_finansial` yang dapat membuka kembali baris `closed`, mengonversi saldo menjadi tagihan, mengonversi sisa tagihan menjadi saldo mengendap, menambah catatan manual, atau menghapus catatan. Alasan wajib. Satu sumber hanya boleh dikonversi satu kali. Catatan otomatis dari cuti, aktivasi, dan isolir tetap dibuat oleh sistem.
+Hanya Super Admin dan `auditor_finansial` yang dapat melakukan tiga aksi pada saldo mengendap: koreksi saldo, membuat invoice dari saldo, dan menghapus catatan. Mereka juga dapat membuka kembali baris `closed` dan memindahkan sisa tagihan menjadi saldo mengendap. Alasan wajib. Satu sumber hanya boleh dijadikan invoice satu kali. Catatan otomatis dari cuti, aktivasi, dan isolir tetap dibuat oleh sistem.
 
-Menghapus tidak menghilangkan baris. Statusnya menjadi `dihapus` dan satu baris `keluar` mengurangi `saldo_akhir`. Baris `dihapus` tidak dapat dikonversi. Menambah catatan manual menulis baris `masuk` dan menaikkan saldo.
+Koreksi saldo menulis baris baru berjenis `koreksi`, arah `masuk` atau `keluar`, sebesar selisih yang diperbaiki. `saldo_akhir` mengikuti baris baru itu. Baris lama, termasuk yang `closed`, tidak diubah.
 
-Konversi saldo menjadi tagihan hanya untuk baris berstatus `mengendap`. Sistem menambah baris `keluar` sebesar nominal sumber. Catatan sumber tetap ada. `saldo_akhir` berkurang. Sistem membuat `TAGIHAN` bertipe `konversi`, status `belum_bayar`, dan nominal yang sama. Tagihan itu dihitung tunggakan dan dapat ditagih.
+Membuat invoice hanya dari baris berstatus `mengendap`. Sistem menambah baris `keluar` sebesar nominal sumber. Catatan sumber tetap ada. `saldo_akhir` berkurang. Sistem membuat `TAGIHAN` bertipe `konversi`, status `belum_bayar`, dan nominal yang sama. Tagihan itu dihitung tunggakan dan dapat ditagih.
+
+Menghapus tidak menghilangkan baris. Statusnya menjadi `dihapus` dan satu baris `keluar` mengurangi `saldo_akhir`. Baris `dihapus` dan `closed` tidak dapat dijadikan invoice.
 
 Konversi tagihan menjadi saldo memindahkan `sisa` yang belum dibayar. Bila belum ada pembayaran, tagihan menjadi `batal` dan satu baris `masuk` menambah saldo sebesar sisa itu. Bila sudah ada pembayaran, `nominal` tagihan diturunkan menjadi `terbayar`, statusnya `lunas`, dan sisa yang dipindahkan masuk ke saldo mengendap. Uang yang sudah masuk tidak ikut pindah.
 
