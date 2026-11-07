@@ -1,6 +1,6 @@
 # 🌐 Rancangan Aplikasi Billing Internet — Microprovider / Mini ISP
 
-> Versi: 2.35 — Tahap 1: Definisi Fitur
+> Versi: 2.36 — Tahap 1: Definisi Fitur
 > Tanggal: 7 November 2026
 
 Keputusan yang mengunci uang, isolir, peran, dan batas tahap awal ada di `docs/decisions/001-keputusan-review-spesifikasi.md`. Jika kalimat di bawah berbeda dengan keputusan itu, keputusan yang dipakai.
@@ -72,7 +72,7 @@ flowchart TD
 | **Profil saat suspend** | Profil menampilkan `status_langganan` yang sedang berlaku. Bila statusnya `isolir` atau `tunda_isolir`, layar membaca baris `RIWAYAT_SUSPEND` yang terbuka: waktu `mulai`, `catatan_mulai`, `dibuat_oleh`, dan `bukti_percakapan`. `bukti_percakapan` adalah tangkapan layar percakapan pelanggan yang meminta suspend, disimpan di disk privat, dan boleh kosong bila suspend berasal dari scheduler. `alasan` dan `disetujui_oleh` dibaca dari baris `RIWAYAT_ISOLIR` yang terbuka. |
 | **Paket Layanan** | Harga paket adalah integer rupiah yang sudah termasuk PPN. Itu nominal yang ditagih, dipotong dompet, dan dicetak. Tidak ada perhitungan PPN kedua di kasir. |
 | **Mikrotik (Many-to-Many)** | Terhubung ke 1 atau banyak Mikrotik via tabel pivot `pelanggan_mikrotik` (IP statis per link) |
-| **Isolir** | Pelanggan baru: `batas_tunggakan = 2`, `siklus_tagihan = tanggal_tetap`. Batas `1` memutus pada satu tagihan lewat jatuh tempo. Batas kosong tidak pernah diputus scheduler. Siklus `prabayar` mengisi `next_isolir` dari tanggal bayar ditambah 30 hari, kecuali pembayaran terjadi selama penundaan toleransi. Rincian ada di `docs/logika-isolir.md`. |
+| **Isolir** | Pelanggan baru: `batas_tunggakan = 2`, `siklus_tagihan = tanggal_tetap`. Batas `1` memutus pada satu tagihan lewat jatuh tempo. Batas kosong tidak pernah diputus scheduler. `prabayar` menghitung sisa hari nyala dari tanggal suspend asli. `tanggal_tetap` kembali ke `hari_isolir`. Rincian ada di `docs/logika-isolir.md`. |
 | **Jatuh Tempo & Prorata** | Jatuh tempo default tanggal 11 pukul 00:00 Asia/Jakarta. Prorata, diskon, biaya aktivasi, dan prorata aktivasi prabayar dihitung dengan `(harga_paket * hari + jumlah_hari_periode / 2) / jumlah_hari_periode`. Hasilnya rupiah integer dan disimpan sebagai hutang mengendap, bukan sebagai invoice. |
 
 ---

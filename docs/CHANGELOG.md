@@ -20,7 +20,7 @@
 - Buku admin kantor memakai `MUTASI_KAS`. Kolektor, admin PC, admin ponsel, dan kios memakai satu aksi `catat_pembayaran`.
 - `N` hanya dihitung dari tagihan yang menjadi lunas. Isolir tanggal 1 berjalan setelah autopay selesai.
 - Satu `PEMBAYARAN` terbagi ke banyak `ALOKASI_PEMBAYARAN`.
-- Tanggal suspend asli disimpan di `mulai_putus` pada `RIWAYAT_ISOLIR`. Perpanjangan hanya menggeser `next_isolir`. Bayar pada atau sebelum tanggal itu menghitung `next_isolir` dari tanggal `mulai_putus` ditambah `N x 30` hari. `acs_device_id` ada di `PERANGKAT_INVENTARIS`. Profil suspend menampilkan waktu, alasan, pelaku, dan `bukti_percakapan`.
+- `prabayar` yang diperpanjang menghitung sisa hari nyala dari tanggal suspend asli. Hari mati setelah batas perpanjangan menggeser sisa itu dari tanggal bayar dan tidak menjadi bonus. `tanggal_tetap` kembali ke `hari_isolir`. Tagihan tetap harga paket. `acs_device_id` ada di `PERANGKAT_INVENTARIS`. Profil suspend menampilkan waktu, alasan, pelaku, dan `bukti_percakapan`.
 - `tidak_serempak` ikut nyala bila syarat putus gugur. Perpanjangan satu bulan menulis `next_isolir`.
 - Tagihan unik per rentang layanan. Prorata dan komisi memakai integer. Potongan memakai `hari_mulai_putus`.
 - `tanggal_daftar` dan `status_langganan` terpisah dari status isolir.
