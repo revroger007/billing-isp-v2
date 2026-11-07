@@ -1,6 +1,6 @@
 # 🌐 Rancangan Aplikasi Billing Internet — Microprovider / Mini ISP
 
-> Versi: 2.12 — Tahap 1: Definisi Fitur
+> Versi: 2.13 — Tahap 1: Definisi Fitur
 > Tanggal: 7 November 2026
 
 Keputusan yang mengunci uang, isolir, peran, dan batas tahap awal ada di `docs/decisions/001-keputusan-review-spesifikasi.md`. Jika kalimat di bawah berbeda dengan keputusan itu, keputusan yang dipakai.
@@ -42,10 +42,11 @@ flowchart TD
 
 | Role | Cakupan & Wewenang |
 |---|---|
-| **Super Admin** | Hak akses penuh: konfigurasi global, manajemen server/mikrotik, approval bypass, audit log, manajemen user. |
+| **Super Admin** | Hak akses penuh: konfigurasi global, manajemen server/mikrotik, approval bypass, audit log, manajemen user. Menunjuk peran `auditor_finansial`. |
+| **Auditor Finansial** | Ditunjuk hanya oleh Super Admin. Memeriksa dan mengoreksi buku tagihan, kas, invoice, dan bukti transfer di seluruh wilayah. Tidak mengelola Mikrotik, isolir, atau user. |
 | **NOC (Network Operation)** | Monitoring link Mikrotik, cek status WireGuard, test koneksi API, log isolir, kontrol teknis jaringan. |
-| **Admin Global** | Operasional menyeluruh lintas wilayah: verifikasi pembayaran transfer, generate tagihan, rekap keuangan global, verifikasi setoran kolektor. |
-| **Admin Wilayah** | Mengelola pelanggan, kolektor, dan verifikasi tagihan hanya pada wilayah/area tertentu yang ditugaskan. |
+| **Admin Global** | Operasional menyeluruh lintas wilayah: verifikasi pembayaran transfer, generate tagihan, rekap keuangan global, verifikasi setoran kolektor. Memegang izin `koreksi_keuangan` dan dapat memberikannya ke Admin Wilayah. |
+| **Admin Wilayah** | Mengelola pelanggan dan kolektor pada dusun di `user_wilayah`. Koreksi keuangan dan verifikasi bukti transfer hanya bila Admin Global atau Super Admin memberi izin `koreksi_keuangan`. |
 | **Teknisi** | Input data pendaftaran pasang baru di lapangan (koordinat GPS, titik ODP), cek status redaman/link, menerima perintah kerja instalasi. |
 | **Kolektor** | Menagih pelanggan yang ditugaskan (1, 2, custom list, atau global). Input pembayaran dengan hak akses bervariasi (lihat modul kolektor). |
 | **Pelanggan** | Akses portal: cek tagihan, riwayat pembayaran, upload bukti transfer manual, informasi paket (login multi-identifier). |
@@ -170,8 +171,8 @@ Menyimpan tagihan dan pembayaran tetap lewat aksi bayar atau aktivasi yang terpi
 | Metode | Alur Verifikasi | Eksekusi Buka Isolir |
 |---|---|---|
 | **Cash (Kasir, Admin, Kolektor)** | Langsung tercatat atas nama user yang menerima uang. Nominal masuk ke periode kas orang itu. Titik GPS disimpan sebagai catatan lokasi, bukan sebagai satu-satunya pengendali. Setiap simpan memakai `idempotency_key` supaya klik ganda tidak membuat dua pembayaran. | Isolir scheduler dibuka hanya bila syarat putus tidak terpenuhi. Isolir manual tidak terbuka karena pembayaran. |
-| **Transfer Manual (Pelanggan)** | Pelanggan mengunggah bukti. Status tagihan menjadi `menunggu_verifikasi` dan tetap dihitung tunggakan. | Setelah Admin Global menyetujui, atau Admin Wilayah yang dusunnya mencakup pelanggan itu. Syarat putus dihitung ulang. |
-| **Transfer Manual (Admin)** | Admin Global, atau Admin Wilayah pada dusun di `user_wilayah`, mengunggah bukti. Tagihan langsung `lunas`. | Syarat putus dihitung ulang. Putus manual tidak ikut terbuka. |
+| **Transfer Manual (Pelanggan)** | Pelanggan mengunggah bukti. Status tagihan menjadi `menunggu_verifikasi` dan tetap dihitung tunggakan. | Setelah pemegang `koreksi_keuangan` menyetujui. Admin Wilayah hanya untuk dusun di `user_wilayah`. Syarat putus dihitung ulang. |
+| **Transfer Manual (Admin)** | Pemegang `koreksi_keuangan` mengunggah bukti. Tagihan langsung `lunas`. Admin Wilayah tanpa izin itu hanya dapat menyimpan bukti sebagai `menunggu_verifikasi`. | Syarat putus dihitung ulang. Putus manual tidak ikut terbuka. |
 | **Transfer Manual (Kolektor)** | Mengikuti level wewenang kolektor. Bukti wajib. | Sama dengan level kolektor, dan tetap menunggu syarat putus. |
 | **Payment Gateway (API)** | Adapter disiapkan untuk gateway yang dipilih nanti. Callback ditolak sebelum transaksi database bila signature, waktu, atau sumber tidak sah. Callback yang lolos dan membawa `gateway_transaction_id` yang sudah ada tidak membuat pembayaran baru. | Setelah lunas dan syarat putus tidak terpenuhi. |
 
@@ -327,6 +328,7 @@ Setiap baris menyimpan waktu UTC, admin, jenis, lawan, arah, nominal, saldo sesu
 | `keluar_serah_admin` | Admin lain | Berkurang. |
 | `keluar_setoran_bank` | User lain yang mengonfirmasi | Berkurang. Tidak menambah saldo orang lain. |
 | `batal` | Pembayaran asal | Membalik baris yang masih pada periode terbuka. |
+| `koreksi` | Mutasi asal | Menambah atau mengurangi sisa pada periode terbuka. Baris lama tidak diubah. |
 
 Transfer bank, payment gateway, potongan dompet, dan komisi reseller tidak menulis baris ini. Uang tunai yang dipegang pelanggan untuk mengisi dompet tetap masuk sebagai `terima_tunai_pelanggan`, lalu saldo dompet dicatat di `DOMPET_PELANGGAN_MUTASI`.
 
@@ -373,6 +375,19 @@ Isi dan aksinya sama dengan PC, dalam satu kolom. Layar awal adalah sisa di tang
 Kios adalah sesi admin yang sedang bertugas di meja. Menu yang ada hanya cari pelanggan dan buku kas hari ini. Pencarian memakai nomor pelanggan, nomor HP, atau pindai token invoice. Layar menampilkan nama, nomor pelanggan, dan daftar tagihan terbuka.
 
 Jumlah yang dihitung adalah uang yang pelanggan serahkan. Bila jumlah itu lebih besar dari sisa tagihan, pilihan bawaan adalah kembalian. Yang masuk laci hanya sebesar tagihan yang dialokasi. Pilihan kedua memasukkan kelebihan ke dompet pelanggan, dan laci bertambah sebesar uang yang diserahkan. Bila jumlah yang diserahkan lebih kecil, pembayaran tercatat sebagian. Kios tidak menampilkan NIK atau daftar pelanggan lain.
+
+#### Koreksi keuangan
+
+Verifikasi dan koreksi buku tagihan, kas, invoice, dan bukti transfer pelanggan memakai satu izin `koreksi_keuangan`. Super Admin dan Admin Global memegang izin itu. Super Admin menunjuk peran `auditor_finansial`, dan peran itu memegang izin yang sama untuk seluruh wilayah. Admin Wilayah tidak memegang izin itu sampai Admin Global atau Super Admin memberikannya. Pemberian dan pencabutan tercatat di audit.
+
+| Aksi | Yang ditulis |
+|---|---|
+| Setujui atau tolak bukti transfer | Status tagihan berubah dari `menunggu_verifikasi`. Tolak mengembalikan status bayar sebelumnya dan menyimpan alasan. |
+| Koreksi invoice | Nominal, status, atau jatuh tempo berubah dengan nilai sebelum dan sesudah. `sisa` dihitung ulang dari `nominal - terbayar`. |
+| Koreksi pembayaran | Pembatalan memakai `reverses_id` pada `PEMBAYARAN` baru. Baris lama tidak dihapus. |
+| Koreksi kas | Baris `MUTASI_KAS` baru berjenis `koreksi` pada periode yang masih terbuka. `saldo_akhir` baris lama tidak ditulis ulang. |
+
+Admin Wilayah yang memegang izin hanya membuka pelanggan pada dusun di `user_wilayah`. Kolektor level 3 tetap dapat mencatat transfernya sendiri tanpa antrean. Bukti yang diunggah pelanggan tetap menunggu pemegang `koreksi_keuangan`. Setiap aksi memakai `lockForUpdate` dan menolak bila pelakunya tidak memegang izin.
 
 ---
 
@@ -1623,7 +1638,7 @@ Aplikasi dirancang memenuhi standar **OWASP ASVS** untuk aplikasi jaringan dan f
 | **Dua akun API Mikrotik** | Akun isolir hanya boleh membaca dan menulis address-list. Akun NOC terpisah yang boleh mengubah interface hanya dipakai untuk matikan laser SFP, dan setiap aksi itu diaudit. |
 | **Integritas Finansial & Concurrency** | Mutasi uang (bayar, top-up, komisi) wajib dibungkus `DB::transaction()` dan **Pessimistic Locking (`lockForUpdate()`)** untuk kebal dari race condition / klik ganda. |
 | **Perlindungan Berkas Privat (KTP & Foto)** | Foto KTP dan berkas fisik disimpan di **Private Storage Disk**. Hanya dapat diakses lewat *Temporary Signed URL* bertenggat waktu oleh admin yang terotentikasi. |
-| **Pencegahan akses liar** | Policy membatasi kolektor, admin wilayah, dan teknisi ke `user_wilayah` pada pelanggan, tiket, ekspor, peta, dan persetujuan pembayaran. Halaman invoice publik memakai token acak 128 bit yang bisa diputar. |
+| **Pencegahan akses liar** | Policy membatasi kolektor, admin wilayah, dan teknisi ke `user_wilayah` pada pelanggan, tiket, ekspor, dan peta. Koreksi tagihan, kas, invoice, dan bukti transfer memakai izin `koreksi_keuangan`. Halaman invoice publik memakai token acak 128 bit yang bisa diputar. |
 | **Penyekatan Port Jaringan** | Port API 8728 di Mikrotik difilter via firewall RouterOS: hanya menerima koneksi dari IP lokal kabel server dan IP tunnel WireGuard server. |
 | **Audit Trail Forensik** | Semua aksi sensitif (isolir manual, approval bypass, perubahan komisi, approval top-up) tercatat di tabel audit log beserta user ID, IP address, dan timestamp. |
 
@@ -1748,7 +1763,7 @@ Aplikasi tidak mempromosikan database, tidak mengklon data dari browser, dan tid
 | Tahap | Fokus | Status |
 |---|---|---|
 | **Tahap 1** | Definisi fitur & rancangan sistem | ✅ Selesai |
-| **Tahap 2** | Setup project Laravel, migrasi, autentikasi tujuh peran, dan tabel `user_wilayah` | Berikutnya |
+| **Tahap 2** | Setup project Laravel, migrasi, autentikasi delapan peran, termasuk `auditor_finansial`,, dan tabel `user_wilayah` | Berikutnya |
 | **Tahap 3** | CRUD Pelanggan, Mikrotik (many-to-many), Paket |  |
 | **Tahap 4** | Modul Tagihan & Generate Bulanan |  |
 | **Tahap 5** | Modul Pembayaran (Cash + Transfer) |  |

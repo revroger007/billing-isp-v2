@@ -45,6 +45,7 @@ Versi 0.3 cara kerja dan versi 1.2 logika isolir memakai tiga default isolir, sa
 - `PELANGGAN` menyimpan `tanggal_daftar` dan `penundaan_catatan`. `status_langganan` terpisah dari `status_layanan`.
 - `LOG_API_MIKROTIK` menyimpan `status_api`, `jumlah_percobaan`, `jumlah_tunggakan`, dan salinan `isolir_berikutnya`.
 - SNMP OLT adalah cadangan aktif bila `snmp_supported` benar. Callback gateway dan webhook pemantauan ditolak sebelum transaksi bila tanda atau sumber tidak sah.
-- Perubahan WiFi dan reboot modem menunggu NOC. Password ajuan terenkripsi dan tidak masuk teks audit. Google tidak membuat akun pelanggan. Admin wilayah hanya menyetujui pembayaran pada dusunnya.
+- Perubahan WiFi dan reboot modem menunggu NOC. Password ajuan terenkripsi dan tidak masuk teks audit. Google tidak membuat akun pelanggan. Admin wilayah hanya menyetujui pembayaran pada dusunnya bila memegang `koreksi_keuangan`.
+- Koreksi tagihan, kas, invoice, dan bukti transfer pelanggan hanya untuk Super Admin, Admin Global, `auditor_finansial` yang ditunjuk Super Admin, dan Admin Wilayah yang diberi izin oleh pusat.
 
-`docs/cara-kerja.md` versi 2.12 dan `docs/logika-isolir.md` versi 2.11 mengikuti keputusan ini. Perubahan berikutnya dicatat sebagai keputusan baru, bukan dengan menghidupkan kalimat lama.
+`docs/cara-kerja.md` versi 2.13 dan `docs/logika-isolir.md` versi 2.11 mengikuti keputusan ini. Perubahan berikutnya dicatat sebagai keputusan baru, bukan dengan menghidupkan kalimat lama.

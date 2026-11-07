@@ -2,6 +2,7 @@
 
 ## 2026-11-07
 
+- Koreksi buku tagihan, kas, invoice, dan bukti transfer memakai izin `koreksi_keuangan`. Auditor finansial ditunjuk Super Admin. Admin Wilayah menerima izin itu dari pusat.
 - Buku admin kantor memakai `MUTASI_KAS`. Kolektor, admin PC, admin ponsel, dan kios memakai satu aksi `catat_pembayaran`.
 - `N` hanya dihitung dari tagihan yang menjadi lunas. Isolir tanggal 1 berjalan setelah autopay selesai.
 - Satu `PEMBAYARAN` terbagi ke banyak `ALOKASI_PEMBAYARAN`.
@@ -32,4 +33,4 @@ Spesifikasi diselaraskan dengan review rancangan.
 - Kasir, admin, dan kolektor punya periode kas harian. Sisa di tangan menjadi 0 hanya setelah setoran utuh dikonfirmasi user lain. Riwayat total tetap tersimpan.
 - Peran Admin Pusat disatukan ke Admin Global. WhatsApp pelanggan hanya lewat tombol. Failover database dikeluarkan dari modul aplikasi.
 
-Belum dikerjakan: kode aplikasi. Tahap berikut adalah proyek Laravel, migrasi, serta autentikasi tujuh peran.
+Belum dikerjakan: kode aplikasi. Tahap berikut adalah proyek Laravel, migrasi, serta autentikasi delapan peran.
