@@ -1,6 +1,6 @@
 # Spesifikasi Logika Isolir
 
-> Versi: 2.9 | Tanggal: 6 November 2026
+> Versi: 2.10 | Tanggal: 6 November 2026
 > Sistem: pra-bayar
 > Mekanisme: IP statis dimasukkan ke address-list Mikrotik. Semua pelanggan memakai IP statis. Kolom `tipe_koneksi` hanya catatan teknis dan tidak mengubah cara isolir.
 
@@ -30,11 +30,15 @@ Scheduler melewati pelanggan bila salah satu ini berlaku:
 
 Pada tanggal `isolir_ditunda_hingga` sendiri, job pukul 00:05 mengisolir bila pembayaran yang membatalkan penundaan belum tercatat. Pembayaran yang masuk kemudian pada hari yang sama tetap diproses dan dapat menyalakan layanan lagi.
 
-Job harian berjalan pukul 00:05 Asia/Jakarta. Tanggal yang dibandingkan adalah tanggal kalender Jakarta, bukan tanggal UTC.
+Pada tanggal 1, generate tagihan dan autopay dompet berjalan pukul 00:01 Asia/Jakarta. Isolir berjalan pukul 00:05. Keduanya tidak boleh tumpang tindih. Autopay yang membuat tagihan lunas selesai sebelum antrean putus ditulis, supaya pelanggan yang saldonya cukup tidak diputus.
+
+Job isolir membandingkan tanggal kalender Jakarta, bukan tanggal UTC.
 
 ## Tiga fungsi
 
 `hitung_isolir_berikutnya` hanya menghitung tanggal dan jumlah tunggakan. Pembayaran, cuti, toleransi, bypass, dan tombol simulasi memanggil fungsi ini. Fungsi ini tidak menghubungi Mikrotik.
+
+`alokasi_pembayaran` adalah satu-satunya fungsi yang membagi uang ke tagihan. Uang melunasi tagihan `langganan` yang belum lunas, urut `jatuh_tempo` terlama, lalu `layanan_mulai`. Sisa uang yang tidak menutup tagihan berikutnya tetap `sebagian` pada tagihan itu. `N` adalah jumlah tagihan langganan yang menjadi `lunas` oleh pembayaran ini. Pembayaran yang tidak membuat satu tagihan pun lunas tidak menggeser `isolir_berikutnya` dan tidak menghapus penundaan toleransi. Tagihan dan pelanggan dikunci `lockForUpdate` di transaksi yang sama.
 
 `putuskan_layanan` dan `nyalakan_layanan` adalah satu-satunya fungsi yang menulis address-list. Keduanya mencatat hasil per router. Status pelanggan menjadi `putus` atau `nyala` hanya setelah semua router yang dituju sukses. `nyalakan_layanan` membatalkan baris putus yang belum dijalankan untuk pelanggan dan router yang sama, supaya antrean lama tidak memutus lagi setelah pelanggan bayar.
 

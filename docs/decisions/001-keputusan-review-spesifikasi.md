@@ -25,6 +25,8 @@ Versi 0.3 cara kerja dan versi 1.2 logika isolir memakai tiga default isolir, sa
 - Satu tagihan langganan yang sudah lewat jatuh tempo memutus pelanggan dengan `batas_tunggakan = 1`, termasuk tagihan bulan lain.
 - Bulan tanpa hari layanan tidak punya tagihan dan tidak punya kuitansi. Aktivasi kembali di tengah bulan membuat tagihan prorata sampai akhir bulan. Tidak adanya tagihan tidak membuka isolir.
 - Tombol simulasi admin menjumlahkan sisa tunggakan dan prorata aktivasi tanpa menyimpan apa pun.
+- Generate tagihan dan autopay tanggal 1 berjalan pukul 00:01, isolir pukul 00:05. `alokasi_pembayaran` melunasi tagihan langganan terlama lebih dulu. `N` adalah jumlah tagihan yang menjadi lunas.
+- Nominal tagihan dipotong hanya saat `status_layanan` menjadi `putus`, dalam transaksi yang sama. Nyala layanan memakai antrean satu sesi per router dengan prioritas tinggi.
 - `riwayat_isolir` menyimpan periode putus sampai nyala per pelanggan. `log_api_mikrotik` tetap menyimpan percobaan API per router.
 - Komentar address-list isolir adalah nomor pelanggan lalu nama. Nomor pelanggan tidak dipotong. Nama yang tidak muat dipotong pada batas 128 karakter.
 - Seribu isolir pada hari yang sama tidak membuka seribu koneksi. Satu Mikrotik satu sesi API, 50 entri, jeda 1 detik. Nyala layanan dari pembayaran didahulukan.
@@ -34,4 +36,4 @@ Versi 0.3 cara kerja dan versi 1.2 logika isolir memakai tiga default isolir, sa
 
 ## Konsekuensi
 
-`docs/cara-kerja.md` dan `docs/logika-isolir.md` versi 2.9 mengikuti keputusan ini. Perubahan berikutnya dicatat sebagai keputusan baru, bukan dengan menghidupkan kalimat lama.
+`docs/cara-kerja.md` dan `docs/logika-isolir.md` versi 2.10 mengikuti keputusan ini. Perubahan berikutnya dicatat sebagai keputusan baru, bukan dengan menghidupkan kalimat lama.

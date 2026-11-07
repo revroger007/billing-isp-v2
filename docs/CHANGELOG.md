@@ -15,6 +15,7 @@ Spesifikasi diselaraskan dengan review rancangan.
 - Nama kolom diselaraskan: `status_layanan`, `log_api_mikrotik`, `nama_address_list`, `tipe_tagihan`, `jumlah_percobaan`. Status router yang tidak selesai serempak adalah `tidak_serempak`.
 - `riwayat_isolir` menyimpan satu periode putus sampai nyala per pelanggan. Percobaan API tetap di `log_api_mikrotik`.
 - Perangkat WiFi menyimpan `username_biasa` dan `password_biasa` di samping `superadmin_username` dan `superadmin_password`. Keduanya terenkripsi. Teknisi hanya boleh melihat login biasa.
+- Tanggal 1: tagihan dan autopay pukul 00:01, isolir pukul 00:05. Pembayaran melunasi tagihan terlama lebih dulu. `N` adalah jumlah tagihan yang menjadi lunas. Nominal dipotong hanya saat status menjadi `putus`. Nyala memakai antrean yang sama dengan prioritas tinggi.
 - Bulan yang terisolir penuh tidak diterbitkan, sehingga tidak ada kuitansi bulan itu. Aktivasi di tengah bulan berikutnya menerbitkan prorata seperti pasang baru.
 - Admin punya tombol simulasi biaya aktivasi dan tunggakan. Hasilnya pratinjau, tidak menulis tagihan atau isolir.
 - Uang, PPN, prorata, baris tagihan, dan jurnal balik dikunci sebagai integer rupiah.

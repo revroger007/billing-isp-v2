@@ -128,7 +128,7 @@ flowchart TD
 
 Hari layanan adalah hari yang bukan cuti dan bukan hari `status_layanan = putus`. Hari putus mulai dihitung sebagai bukan layanan, karena layanan diputus pukul 00:05. Hari layanan dinyalakan kembali dihitung. Hari `tidak_serempak` tetap ditagih.
 
-Tagihan langganan yang sudah terbit dipotong ke hari layanan yang tersisa. Nomor tagihan tidak berubah. Nominal dihitung ulang dengan rumus prorata. Audit menyimpan nominal lama dan nominal baru. Bila tidak ada hari layanan tersisa, tagihan menjadi `batal` dan tidak dihitung tunggakan. Uang yang sudah masuk di atas nominal baru kembali ke dompet.
+Tagihan langganan yang sudah terbit dipotong ke hari layanan yang tersisa hanya di transaksi yang sama dengan perubahan `status_layanan` menjadi `putus`. Saat status masih `menunggu_router`, nominal tidak diubah. Nomor tagihan tidak berubah. Tagihan dikunci `lockForUpdate`. Audit menyimpan nominal lama dan nominal baru. Bila tidak ada hari layanan tersisa, tagihan menjadi `batal` dan tidak dihitung tunggakan. Uang yang sudah masuk di atas nominal baru kembali ke dompet.
 
 Bila pelanggan kembali di tengah bulan, sistem menerbitkan tagihan baru untuk hari layanan sejak tanggal itu sampai akhir bulan. Tanggal 1 yang penuh layanan memakai harga penuh. Bulan tanpa hari layanan tidak diterbitkan dan tidak punya kuitansi. Tidak adanya tagihan tidak dihitung lunas, dan pelanggan yang `putus` tetap `putus`.
 
@@ -200,7 +200,7 @@ Setiap kolektor memiliki konfigurasi penugasan dan wewenang transaksi tersendiri
 > - Jika pelanggan terhubung ke lebih dari satu Mikrotik, setiap router punya antreannya sendiri. Pada satu router hanya satu koneksi API. Status pelanggan menjadi `putus` atau `nyala` hanya setelah semua router sukses.
 > - IP selalu diambil dari `pelanggan_mikrotik.ip_address`. Tidak ada cabang IP sesi PPPoE atau Hotspot.
 
-#### Flow Isolir — Multi-Mikrotik Paralel
+#### Flow Isolir — Antrian per Mikrotik
 
 ```mermaid
 flowchart TD
@@ -229,13 +229,13 @@ flowchart TD
     JOB1 & JOB2 --> LOG
 ```
 
-#### Flow Reaktivasi — Multi-Mikrotik Paralel
+#### Flow Reaktivasi — Antrian per Mikrotik
 
 ```mermaid
 flowchart TD
     A["Syarat putus sudah tidak terpenuhi\natau nyala manual disetujui"]
     C["Ambil semua Mikrotik\npelanggan ini"]
-    D["Dispatch parallel jobs\nper Mikrotik"]
+    D["Masuk antrian\nsatu pekerja per Mikrotik\nprioritas nyala"]
     E1["Hapus IP dari\naddress-list MK-A"]
     E2["Hapus IP dari\naddress-list MK-B"]
     LOG["Nyala hanya bila\nsemua router sukses"]
