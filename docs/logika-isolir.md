@@ -1,6 +1,6 @@
 # Spesifikasi Logika Isolir
 
-> Versi: 2.22 | Tanggal: 7 November 2026
+> Versi: 2.23 | Tanggal: 7 November 2026
 > Sistem: pra-bayar
 > Mekanisme: IP statis dimasukkan ke address-list Mikrotik. Semua pelanggan memakai IP statis. Kolom `tipe_koneksi` hanya catatan teknis dan tidak mengubah cara isolir.
 
@@ -148,16 +148,17 @@ Penundaan hanya mengisi `next_isolir`. Tidak ada tanggal penundaan kedua. `alasa
 
 Toleransi dipakai saat pelanggan sudah `putus`. Admin mengisi tanggal batas, tanpa persetujuan kedua. `mulai_putus` tidak diubah.
 
-Pada saat disetujui, baris `RIWAYAT_ISOLIR` yang terbuka menyimpan:
+Saat disetujui:
 
-- `mulai_putus`: tanggal isolir pertama, tidak diubah
-- `mulai_perpanjangan`: tanggal layanan dinyalakan lagi
-- `batas_perpanjangan`: tanggal yang ditulis ke `next_isolir`
-- `alasan = toleransi`
+- `last_active` diisi waktu layanan dinyalakan lagi
+- `next_isolir` diisi tanggal batas
+- baris `RIWAYAT_ISOLIR` yang terbuka hanya ditandai `alasan = toleransi`
+- `nyalakan_layanan` dipanggil, tetapi `nyala_kembali` tetap kosong
+- `hari_isolir` tidak diubah
 
-`PELANGGAN` hanya menyimpan `next_isolir` sama dengan `batas_perpanjangan`. Jumlah hari tidak disimpan. Hari aktif perpanjangan = tanggal `batas_perpanjangan` dikurangi tanggal `mulai_perpanjangan`, dalam kalender Asia/Jakarta. `nyalakan_layanan` dipanggil, tetapi `nyala_kembali` tetap kosong. `last_active` diisi waktu layanan nyala lagi. `hari_isolir` tidak diubah.
+Tidak ada kolom tanggal perpanjangan lain. Hari aktif = tanggal `next_isolir` dikurangi tanggal kalender Asia/Jakarta dari `last_active`. Angka itu dihitung di transaksi pembayaran, sebelum `next_isolir` ditulis ulang.
 
-Contoh: isolir 5 September. Pengajuan disetujui 7 September, `next_isolir` menjadi 10 September. `mulai_putus` = 5 September, `mulai_perpanjangan` = 7 September, `batas_perpanjangan` = 10 September. Hari aktif = 3. Dua hari di antara 5 dan 7 September tidak dihitung sebagai layanan.
+Contoh: isolir 5 September. Disetujui 7 September. `mulai_putus` = 5 September, `last_active` = 7 September, `next_isolir` = 10 September. Hari aktif = 3. Dua hari di antara 5 dan 7 September tidak dihitung sebagai layanan.
 
 Untuk `prabayar`, sisa hari = `(N x 30) - hari aktif`. Tagihan tetap harga paket penuh.
 
