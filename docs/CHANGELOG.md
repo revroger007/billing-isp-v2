@@ -2,7 +2,7 @@
 
 ## 2026-11-07
 
-- Cuti tidak membatalkan invoice dan tidak memindahkannya menjadi saldo mengendap. Pemindahan itu manual oleh Super Admin atau `auditor_finansial`.
+- Isolir hanya menghitung tagihan bulanan `periode_penuh` yang belum dibayar sama sekali. Pembayaran sebagian dan tagihan nonbulanan memberi tanda `tidak_tertib` serta rekomendasi `prabayar`.
 - Tagihan `konversi` dapat ditagih, tetapi tidak dihitung isolir dan tidak menambah `N`. Komisi reseller dan `N` transfer menunggu bukti `sudah_diverifikasi`.
 - Pengeluaran gaji, komisi, dan operasional dari laci menulis baris keluar pada `MUTASI_KAS`. Konversi saldo mengendap tidak menulis kas.
 - Super Admin dan `auditor_finansial` dapat menambah, mengedit, dan menghapus record saldo mengendap, serta membuat invoice dari record yang masih `mengendap`. Edit menyimpan nilai lama dan menghitung ulang saldo sesudahnya.

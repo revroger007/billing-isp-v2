@@ -1,6 +1,6 @@
 # Spesifikasi Logika Isolir
 
-> Versi: 2.15 | Tanggal: 7 November 2026
+> Versi: 2.16 | Tanggal: 7 November 2026
 > Sistem: pra-bayar
 > Mekanisme: IP statis dimasukkan ke address-list Mikrotik. Semua pelanggan memakai IP statis. Kolom `tipe_koneksi` hanya catatan teknis dan tidak mengubah cara isolir.
 
@@ -44,16 +44,18 @@ Job isolir membandingkan tanggal kalender Jakarta, bukan tanggal UTC.
 
 ## Status yang dihitung tunggakan
 
-Hanya tagihan `tipe_tagihan = langganan` yang tanggal jatuh temponya sudah sampai. Tagihan `konversi` dapat ditagih, tetapi tidak dihitung di `jumlah` dan tidak memperpanjang siklus `prabayar`. Biaya pasang, denda, invoice manual, dan saldo mengendap tidak dihitung. Bulan yang tidak diterbitkan tidak dihitung lunas dan tidak menyalakan layanan.
+Hanya tagihan `langganan` dengan `periode_penuh = true` yang dihitung isolir. `periode_penuh` berarti nominalnya utuh sebesar harga paket pada saat tagihan terbit. Tagihan `konversi`, biaya pasang, denda, dan invoice `manual` diperlakukan sama: dapat ditagih, tidak dihitung di `jumlah`, dan tidak memperpanjang siklus `prabayar`. Saldo mengendap tidak dihitung. Bulan yang tidak diterbitkan tidak dihitung lunas dan tidak menyalakan layanan.
 
-Satu tagihan dihitung tunggakan bila statusnya `belum_bayar`, `sebagian`, atau `menunggu_verifikasi`, dan tipenya `langganan`. Status `sebagian` tetap satu tunggakan sampai `sisa = 0`. Bukti transfer pada mode `tidak_wajib` membuat tagihan `lunas` dan dapat menyalakan layanan, tetapi belum menambah `N` sebelum tanda `sudah_diverifikasi`. Mode `wajib`, tanda pelanggan, atau kolektor level 2 membuat status `menunggu_verifikasi` dan belum menyalakan layanan.
+Satu tagihan penuh dihitung tunggakan hanya bila `terbayar = 0` dan statusnya `belum_bayar` atau `menunggu_verifikasi`. Tagihan penuh yang sudah dibayar sebagian tidak dihitung, walaupun `sisa` masih ada. Status invoice tetap `sebagian`. Bukti transfer pada mode `tidak_wajib` membuat tagihan `lunas` dan dapat menyalakan layanan, tetapi belum menambah `N` sebelum tanda `sudah_diverifikasi`. Mode `wajib`, tanda pelanggan, atau kolektor level 2 membuat status `menunggu_verifikasi` dan belum menyalakan layanan.
+
+Pelanggan yang punya `sisa > 0` pada tagihan yang tidak dihitung isolir mendapat tanda `tidak_tertib`. Tanda itu berarti tidak tertib administrasi atau ada tunggakan nonbulanan. Tanda dihitung saat profil dibuka, bukan disimpan terpisah. Bila siklusnya masih `tanggal_tetap`, profil menampilkan rekomendasi untuk menjadikannya pelanggan `prabayar`. Rekomendasi tidak mengubah siklus.
 
 ## Siklus tanggal_tetap
 
 `batas_tunggakan = null` membuat scheduler melewati putus otomatis. Bila putus sebelumnya berasal dari scheduler, jalan berikutnya menyalakan layanan. Putus manual tidak ikut terbuka.
 
 ```
-jumlah = jumlah tagihan langganan yang belum lunas dan jatuh temponya sudah sampai
+jumlah = jumlah tagihan langganan periode_penuh yang terbayar = 0 dan jatuh temponya sudah sampai
 
 Jika batas_tunggakan berisi 1 atau 2 dan hari ini >= isolir_berikutnya:
     Jika jumlah >= batas dan status_layanan salah satu dari nyala, gagal_putus:
@@ -62,7 +64,9 @@ Jika batas_tunggakan berisi 1 atau 2 dan hari ini >= isolir_berikutnya:
         nyalakan_layanan
 ```
 
-Tagihan lama ikut dihitung. Satu tagihan September yang lewat jatuh tempo memutus pelanggan dengan batas 1, walaupun tagihan bulan ini sudah lunas. Pada batas 2, membayar satu dari dua tagihan sudah cukup untuk menyalakan layanan. `hari_isolir` tidak bergeser.
+Tagihan penuh yang sudah dibayar sebagian tidak menambah `jumlah`. Contoh tagihan Rp100.000 dibayar Rp50.000 tetap berstatus `sebagian`, tetapi untuk isolir dianggap tidak menunggak. Pelanggan itu mendapat tanda `tidak_tertib`.
+
+Tagihan lama yang `periode_penuh` dan masih `terbayar = 0` ikut dihitung. Satu tagihan September yang belum dibayar sama sekali memutus pelanggan dengan batas 1, walaupun tagihan bulan ini sudah lunas. Pada batas 2, `jumlah` turun di bawah 2 bila salah satu tagihan penuh sudah ada pembayarannya, termasuk pembayaran sebagian. `hari_isolir` tidak bergeser.
 
 Tombol simulasi hanya pratinjau. Simulasi tidak mengubah `status_layanan` dan tidak menyimpan `isolir_berikutnya`.
 
