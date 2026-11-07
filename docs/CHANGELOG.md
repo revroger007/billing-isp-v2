@@ -2,7 +2,7 @@
 
 ## 2026-11-07
 
-- Super Admin dan `auditor_finansial` dapat mengoreksi saldo mengendap, membuat invoice dari saldo itu, dan menghapus catatannya. Koreksi menulis baris baru. Hapus tidak menghilangkan riwayat.
+- Super Admin dan `auditor_finansial` dapat menambah, mengedit, dan menghapus record saldo mengendap, serta membuat invoice dari record yang masih `mengendap`. Edit menyimpan nilai lama dan menghitung ulang saldo sesudahnya.
 - Saldo mengendap dan tagihan dapat dikonversi dua arah. Catatan asal tetap ada. Konversi ke tagihan mengurangi saldo. Konversi dari tagihan menambah saldo.
 - Bukti transfer bawaan langsung `lunas` dengan tanda `belum_diverifikasi`. Mode wajib, tanda pelanggan, atau kolektor level 2 menahan status `menunggu_verifikasi`.
 - Prorata, diskon, biaya aktivasi, dan prorata aktivasi prabayar masuk `HUTANG_MENGENDAP`, bukan invoice. Saldo itu untuk evaluasi dan tidak menjadi piutang.
