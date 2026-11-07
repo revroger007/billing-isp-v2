@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-11-07 (keputusan 002)
+
+- Biaya pasang dan semua prorata terbit sebagai tagihan `biaya_pasang` dan `prorata`. Keduanya piutang yang ditagih kolektor, tetapi tidak dihitung tunggakan isolir, tidak menambah `N`, dan tidak mengubah `next_isolir`. Biaya aktivasi dan diskon tetap di `HUTANG_MENGENDAP`.
+- Alokasi pembayaran melunasi tagihan `langganan` terlama dulu, lalu tagihan lain urut `jatuh_tempo`.
+- Dusun boleh kosong selama `menunggu_verifikasi_pusat`. Persetujuan, tagihan, dan impor pelanggan aktif mewajibkan dusun. `CHECK` constraint menjaga aturan itu.
+- Dying gasp dibaca Zabbix dari OLT, bukan dari ACS. Aplikasi tidak menyimpannya di tabel sendiri. Kejadian itu ada di log alert Zabbix dan di log tiket atau agenda yang terbuka.
+
+Masih TODO: keputusan tentang `next_isolir`, tanda `tidak_tertib` untuk tagihan `biaya_pasang` yang baru terbit, serta temuan review nomor 3, 4, dan 7.
+
 ## 2026-11-07
 
 - `onu_id` dan `onu_sn` ada di `PERANGKAT_INVENTARIS`. `olt_id` dan `pon_port` tetap di `PELANGGAN`. `serial_number` tetap nomor stok.

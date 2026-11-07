@@ -1,14 +1,14 @@
 # Spesifikasi Logika Isolir
 
-> Versi: 2.23 | Tanggal: 7 November 2026
+> Versi: 2.24 | Tanggal: 7 November 2026
 > Sistem: pra-bayar
 > Mekanisme: IP statis dimasukkan ke address-list Mikrotik. Semua pelanggan memakai IP statis. Kolom `tipe_koneksi` hanya catatan teknis dan tidak mengubah cara isolir.
 
-Aturan di dokumen ini mengalahkan diagram atau kalimat lama yang masih memakai `isolir_enabled`, `bypass_until`, `isolir_sementara`, `masa_aktif_hingga`, atau `prepaid_30hari`.
+Aturan di dokumen ini mengalahkan diagram atau kalimat lama yang masih memakai `isolir_enabled`, `bypass_until`, `isolir_sementara`, `masa_aktif_hingga`, atau `prepaid_30hari`. Keputusan di `docs/decisions/` mengalahkan dokumen ini. Bila dua keputusan berbeda, nomor yang lebih besar yang dipakai.
 
 ## Dua pengaturan
 
-Isolir hanya memutus atau menyalakan layanan. Prorata, diskon, biaya aktivasi, dan prorata aktivasi prabayar diatur di `docs/cara-kerja.md` sebagai hutang mengendap. Jumlah itu tidak dihitung sebagai tunggakan. Tagihan langganan yang dihitung isolir adalah periode penuh. Bulan tanpa tagihan tidak punya kuitansi dan tidak membuka isolir.
+Isolir hanya memutus atau menyalakan layanan. Prorata dan biaya pasang terbit sebagai tagihan `prorata` dan `biaya_pasang`. Keduanya piutang, tetapi tidak dihitung tunggakan isolir dan tidak mengubah `next_isolir`. Diskon dan biaya aktivasi diatur di `docs/cara-kerja.md` sebagai hutang mengendap dan juga tidak dihitung tunggakan. Tagihan langganan yang dihitung isolir adalah periode penuh. Bulan tanpa tagihan tidak punya kuitansi dan tidak membuka isolir.
 
 Pelanggan baru: `batas_tunggakan = 2`, `siklus_tagihan = tanggal_tetap`.
 
@@ -40,13 +40,13 @@ Cuti membuat satu baris `RIWAYAT_SUSPEND` berjenis `cuti` saat cuti dimulai. `st
 
 `hitung_isolir_berikutnya` hanya menghitung tanggal dan jumlah tunggakan. Pembayaran, cuti, toleransi, bypass, dan tombol simulasi memanggil fungsi ini. Fungsi ini tidak menghubungi Mikrotik.
 
-`alokasi_pembayaran` adalah satu-satunya fungsi yang membagi uang ke tagihan. Satu penerimaan uang membuat satu baris `PEMBAYARAN` dengan `idempotency_key` unik. `gateway_transaction_id` yang terisi juga unik. Baris `ALOKASI_PEMBAYARAN` mencatat nominal per tagihan. Uang melunasi tagihan `langganan` yang belum lunas, urut `jatuh_tempo` terlama, lalu `layanan_mulai`. Sisa uang yang tidak menutup tagihan berikutnya tetap `sebagian` pada tagihan itu. `N` adalah jumlah tagihan `langganan` yang menjadi `lunas` oleh pembayaran ini dan, untuk transfer, sudah bertanda `sudah_diverifikasi`. Tagihan `konversi` tidak menambah `N`. Tidak ada pilihan `N` di layar. Pembayaran yang tidak membuat satu tagihan langganan pun lunas tidak menggeser `next_isolir`. Tagihan, pembayaran, dan pelanggan dikunci `lockForUpdate` di transaksi yang sama.
+`alokasi_pembayaran` adalah satu-satunya fungsi yang membagi uang ke tagihan. Satu penerimaan uang membuat satu baris `PEMBAYARAN` dengan `idempotency_key` unik. `gateway_transaction_id` yang terisi juga unik. Baris `ALOKASI_PEMBAYARAN` mencatat nominal per tagihan. Uang melunasi tagihan `langganan` yang belum lunas, urut `jatuh_tempo` terlama, lalu `layanan_mulai`. Sesudah semua tagihan `langganan` lunas, sisa uang melunasi tagihan lain (`prorata`, `biaya_pasang`, `konversi`, `manual`), urut `jatuh_tempo`. Sisa uang yang tidak menutup tagihan berikutnya tetap `sebagian` pada tagihan itu. `N` adalah jumlah tagihan `langganan` yang menjadi `lunas` oleh pembayaran ini dan, untuk transfer, sudah bertanda `sudah_diverifikasi`. Tagihan `konversi` tidak menambah `N`. Tidak ada pilihan `N` di layar. Pembayaran yang tidak membuat satu tagihan langganan pun lunas tidak menggeser `next_isolir`. Tagihan, pembayaran, dan pelanggan dikunci `lockForUpdate` di transaksi yang sama.
 
 `putuskan_layanan` dan `nyalakan_layanan` adalah satu-satunya fungsi yang menulis address-list. Keduanya mencatat hasil per router. Status pelanggan menjadi `putus` atau `nyala` hanya setelah semua router yang dituju sukses. `nyalakan_layanan` membatalkan baris putus yang belum dijalankan untuk pelanggan dan router yang sama, supaya antrean lama tidak memutus lagi setelah pelanggan bayar.
 
 ## Status yang dihitung tunggakan
 
-Hanya tagihan `langganan` dengan `periode_penuh = true` yang dihitung isolir. `periode_penuh` berarti nominalnya utuh sebesar harga paket pada saat tagihan terbit. Tagihan `konversi`, biaya pasang, denda, dan invoice `manual` diperlakukan sama: dapat ditagih, tidak dihitung di `jumlah`, dan tidak memperpanjang siklus `prabayar`. Saldo mengendap tidak dihitung. Bulan yang tidak diterbitkan tidak dihitung lunas dan tidak menyalakan layanan.
+Hanya tagihan `langganan` dengan `periode_penuh = true` yang dihitung isolir. `periode_penuh` berarti nominalnya utuh sebesar harga paket pada saat tagihan terbit. Tagihan `konversi`, `prorata`, `biaya_pasang`, denda, dan invoice `manual` diperlakukan sama: piutang yang dapat ditagih, tidak dihitung di `jumlah`, tidak menambah `N`, dan tidak memperpanjang siklus `prabayar`. Saldo mengendap tidak dihitung. Bulan yang tidak diterbitkan tidak dihitung lunas dan tidak menyalakan layanan.
 
 Satu tagihan penuh dihitung tunggakan hanya bila `terbayar = 0` dan statusnya `belum_bayar` atau `menunggu_verifikasi`. Tagihan penuh yang sudah dibayar sebagian tidak dihitung, walaupun `sisa` masih ada. Status invoice tetap `sebagian`. Bukti transfer pada mode `tidak_wajib` membuat tagihan `lunas` dan dapat menyalakan layanan, tetapi belum menambah `N` sebelum tanda `sudah_diverifikasi`. Mode `wajib`, tanda pelanggan, atau kolektor level 2 membuat status `menunggu_verifikasi` dan belum menyalakan layanan.
 

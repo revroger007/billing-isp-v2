@@ -1,9 +1,9 @@
 # 🌐 Rancangan Aplikasi Billing Internet — Microprovider / Mini ISP
 
-> Versi: 2.38 — Tahap 1: Definisi Fitur
+> Versi: 2.39 — Tahap 1: Definisi Fitur
 > Tanggal: 7 November 2026
 
-Keputusan yang mengunci uang, isolir, peran, dan batas tahap awal ada di `docs/decisions/001-keputusan-review-spesifikasi.md`. Jika kalimat di bawah berbeda dengan keputusan itu, keputusan yang dipakai.
+Keputusan yang mengunci uang, isolir, peran, dan batas tahap awal ada di `docs/decisions/`. Jika kalimat di bawah berbeda dengan keputusan, keputusan yang dipakai. Bila dua keputusan berbeda, nomor yang lebih besar yang dipakai.
 
 ---
 
@@ -60,7 +60,7 @@ flowchart TD
 | Field / Fitur | Keterangan |
 |---|---|
 | **Identitas & Kontak** | Nama, Alamat detail (RT/RW/No Rumah), No. HP, Email, No. Pelanggan unik (auto-generate, contoh: `CUST-00123`) |
-| **Hierarki Wilayah** | Pengelompokan administratif berjenjang: **Kecamatan $\rightarrow$ Desa/Kelurahan $\rightarrow$ Dusun/Dukuh** (opsional pada form awal). |
+| **Hierarki Wilayah** | Pengelompokan administratif berjenjang: **Kecamatan $\rightarrow$ Desa/Kelurahan $\rightarrow$ Dusun/Dukuh**. Opsional saat pelanggan masih diusulkan. Dusun wajib sebelum Admin Global menyetujui, karena tagihan dan cakupan petugas memakai dusun. |
 | **Topologi Sumber Sambungan Fleksibel** | **Mengakomodasi Realita Lapangan RT/RW Net:** Pelanggan tidak dipaksa harus selalu dari tiang ODP resmi. Disediakan 4 pilihan sumber koneksi:<br>1. **ODP Tiang (Standar Fiber):** Tersambung ke tiang ODP resmi (pilih ODP dan Nomor Port).<br>2. **Splitter Rumah Tetangga (Sub-Splitter / Numpang):** Mengambil sinyal optik dari splitter kecil (misal ratio 1:2 atau 1:4) yang dititipkan di rumah tetangga terdekat (pilih nama tetangga *parent* & catatan posisi box di teras/atap).<br>3. **Estafet HTB / Switch LAN:** Pelanggan dicolok kabel LAN UTP dari media converter HTB / Switch Hub yang dititipkan di rumah warga atau tiang gang (pilih nama warga sumber HTB & port switch).<br>4. **Koneksi Langsung:** Ditarik langsung dari switch/router kantor pusat. |
 | **Peta Pohon Dependensi (*Parent-Child Tree*)** | **Kunci Diagnosa Gangguan:** Jika 3 rumah estafet HTB mati bersamaan, sistem langsung menandai bahwa sumber masalahnya berasal dari **titik rumah induk (parent)** yang mati lampu atau adaptor HTB-nya tercabut, bukan kabel jalanan yang putus! |
 | **Login Portal Pelanggan** | Username, email, nomor HP, dan nomor pelanggan. Google hanya menaut ke akun yang emailnya sudah sama dan tidak membuat akun pelanggan baru. |
@@ -73,7 +73,7 @@ flowchart TD
 | **Paket Layanan** | Harga paket adalah integer rupiah yang sudah termasuk PPN. Itu nominal yang ditagih, dipotong dompet, dan dicetak. Tidak ada perhitungan PPN kedua di kasir. |
 | **Mikrotik (Many-to-Many)** | Terhubung ke 1 atau banyak Mikrotik via tabel pivot `pelanggan_mikrotik` (IP statis per link) |
 | **Isolir** | Pelanggan baru: `batas_tunggakan = 2`, `siklus_tagihan = tanggal_tetap`. Batas `1` memutus pada satu tagihan lewat jatuh tempo. Batas kosong tidak pernah diputus scheduler. `prabayar` menghitung sisa hari nyala dari tanggal suspend asli. `tanggal_tetap` kembali ke `hari_isolir`. Rincian ada di `docs/logika-isolir.md`. |
-| **Jatuh Tempo & Prorata** | Jatuh tempo default tanggal 11 pukul 00:00 Asia/Jakarta. Prorata, diskon, biaya aktivasi, dan prorata aktivasi prabayar dihitung dengan `(harga_paket * hari + jumlah_hari_periode / 2) / jumlah_hari_periode`. Hasilnya rupiah integer dan disimpan sebagai hutang mengendap, bukan sebagai invoice. |
+| **Jatuh Tempo & Prorata** | Jatuh tempo default tanggal 11 pukul 00:00 Asia/Jakarta. Prorata, diskon, biaya aktivasi, dan prorata aktivasi prabayar dihitung dengan `(harga_paket * hari + jumlah_hari_periode / 2) / jumlah_hari_periode`. Hasilnya rupiah integer. Prorata dan biaya pasang terbit sebagai tagihan `prorata` dan `biaya_pasang`, menjadi piutang, dan tidak mengubah jadwal isolir. Biaya aktivasi dan diskon disimpan sebagai hutang mengendap. |
 
 ---
 
@@ -85,8 +85,8 @@ flowchart TD
 | **Urutan Form Proporsional** | **Bagian 1: Identitas Utama**<br>1. Nama Lengkap `[WAJIB]`<br>2. Nomor HP / WhatsApp `[WAJIB]`<br><br>**Bagian 2: Lokasi & Alamat**<br>3. Alamat Detail (Jalan / RT / RW / Patokan Rumah) `[WAJIB]`<br>4. Kecamatan `[OPSIONAL]` (Dropdown)<br>5. Desa / Kelurahan `[OPSIONAL]` (Dropdown cascading)<br>6. Dusun / Dukuh `[OPSIONAL]` (Dropdown cascading)<br>7. Titik Koordinat GPS `[OPSIONAL]` (Tombol deteksi GPS ponsel)<br><br>**Bagian 3: Layanan & Finansial**<br>8. Paket yang Dipilih `[OPSIONAL]` (Dropdown paket)<br>9. Biaya Pemasangan / Instalasi `[OPSIONAL]` (Nominal Rp)<br><br>**Bagian 4: Lampiran Dokumen & Fisik**<br>10. Foto KTP / Identitas `[OPSIONAL]` (Upload/Kamera)<br>11. Foto Lokasi Rumah / Depan `[OPSIONAL]` (Upload/Kamera) |
 | **Kunci Reseller Otomatis** | Jika diinput oleh Reseller, sistem otomatis mengunci `reseller_id` ke akun mitra tersebut. |
 | **Status Awal** | Masuk ke antrean verifikasi: `menunggu_verifikasi_pusat`. |
-| **Verifikasi Admin Global** | **Admin Global memvalidasi kelayakan dan menetapkan aspek teknis:**<br>1. Alokasi Mikrotik (atau multi-Mikrotik)<br>2. Alokasi IP statis pelanggan<br>3. Verifikasi paket resmi, `batas_tunggakan` (default `2`), dan `siklus_tagihan` (default `tanggal_tetap`)<br>4. Verifikasi biaya pasang baru.<br>Persetujuan ditolak bila paket masih kosong. |
-| **Otomatisasi Pasca Approval** | Begitu disetujui Admin Global:<br>1. Status menjadi `siap_pasang`. Isolir otomatis belum berjalan karena `tanggal_instalasi` masih kosong.<br>2. Nomor pelanggan unik terbit.<br>3. Akun portal pelanggan terbit.<br>4. Invoice perdana tidak memuat prorata atau biaya pasang. Keduanya dicatat sebagai hutang mengendap. Invoice periode penuh terbit pada periode penuh pertama.<br>5. Email sambutan terkirim. WhatsApp hanya lewat tombol `wa.me` yang diklik staf. |
+| **Verifikasi Admin Global** | **Admin Global memvalidasi kelayakan dan menetapkan aspek teknis:**<br>1. Alokasi Mikrotik (atau multi-Mikrotik)<br>2. Alokasi IP statis pelanggan<br>3. Verifikasi paket resmi, `batas_tunggakan` (default `2`), dan `siklus_tagihan` (default `tanggal_tetap`)<br>4. Verifikasi biaya pasang baru.<br>5. Melengkapi dusun bila penginput belum mengisinya.<br>Persetujuan ditolak bila paket atau dusun masih kosong. Selama belum disetujui, pelanggan tanpa dusun hanya tampil di antrean verifikasi Admin Global dan bagi user yang menginputnya. |
+| **Otomatisasi Pasca Approval** | Begitu disetujui Admin Global:<br>1. Status menjadi `siap_pasang`. Isolir otomatis belum berjalan karena `tanggal_instalasi` masih kosong.<br>2. Nomor pelanggan unik terbit.<br>3. Akun portal pelanggan terbit.<br>4. Belum ada tagihan yang terbit. Saat `tanggal_instalasi` diisi, sistem menerbitkan tagihan `biaya_pasang` bila nominalnya lebih dari 0, dan tagihan `prorata` untuk sisa hari periode berjalan. Keduanya piutang dengan jatuh tempo tanggal terbit, dan tidak dihitung tunggakan isolir. Invoice `langganan` terbit pada periode penuh pertama.<br>5. Email sambutan terkirim. WhatsApp hanya lewat tombol `wa.me` yang diklik staf. |
 | **Berita Acara Digital & Tanda Tangan HP (*Digital Handover*)** | **Validasi Resmi Penyerahan Perangkat Pasca Pasang Baru:**<br>Saat instalasi selesai di rumah warga, teknisi membuka form Berita Acara di HP:<br>1. **Scan / Pilih SN Modem:** Teknisi memilih Serial Number modem dari stok tasnya.<br>2. **Tanda Tangan Digital Pelanggan:** Pelanggan menandatangani berita acara langsung di layar sentuh HP teknisi (*Digital Signature Pad*).<br>3. **Klausul Pinjam Pakai Milik ISP:** Dokumen memuat klausul hukum resmi bahwa modem/ONT berstatus **Pinjam Pakai Milik ISP** (bukan hak milik pelanggan).<br>4. **PDF berita acara:** Sistem menerbitkan PDF bernomor unik. Staf menekan tombol `wa.me` bila pelanggan minta tautannya. PDF menyimpan hash dokumen, nama penanda tangan, waktu, dan IP perangkat. Tanda tangan di layar adalah bukti serah terima operasional, bukan pengganti akta. |
 
 ---
@@ -117,20 +117,20 @@ flowchart TD
 | Fitur | Keterangan |
 |---|---|
 | **Format No. Tagihan** | `INV-YYYY-MM-XXXX` (contoh: `INV-2026-11-0001`). Nomor diambil dari sequence per periode di dalam transaksi database. Nomor yang sudah terbit tidak dipakai ulang, termasuk tagihan yang dibatalkan. |
-| **Generate Otomatis & Manual** | 1. **Otomatis bulanan:** satu tagihan `langganan` untuk satu periode penuh, dengan `periode_penuh = true`. Kendala unik `(pelanggan_id, tipe_tagihan, layanan_mulai)` ada pada tabel `TAGIHAN`. Periode yang terpotong cuti, aktivasi, atau isolir tidak menjadi tagihan.<br>2. **Invoice manual:** biaya di luar langganan (penggantian router, denda) menjadi tagihan `manual`, `periode_penuh = false`, dan tidak dihitung `batas_tunggakan`.<br>3. Tagihan punya baris. `nominal` adalah jumlah baris. `sisa` selalu `nominal - terbayar - nominal_dipindah`, dijaga constraint. |
+| **Generate Otomatis & Manual** | 1. **Otomatis bulanan:** satu tagihan `langganan` untuk satu periode penuh, dengan `periode_penuh = true`. Kendala unik `(pelanggan_id, tipe_tagihan, layanan_mulai)` ada pada tabel `TAGIHAN`. Periode yang terpotong cuti, aktivasi, atau isolir tidak menjadi tagihan `langganan`. Hari layanannya ditagih sebagai `prorata`.<br>2. **Invoice manual:** biaya di luar langganan (penggantian router, denda) menjadi tagihan `manual`, `periode_penuh = false`, dan tidak dihitung `batas_tunggakan`.<br>3. **Biaya pasang dan prorata:** tagihan `biaya_pasang` dan `prorata`, `periode_penuh = false`. Keduanya piutang yang ditagih kolektor, tetapi tidak dihitung `batas_tunggakan`, tidak menambah `N`, dan tidak mengubah `next_isolir`. `layanan_mulai` pada `biaya_pasang` adalah tanggal instalasi.<br>4. Tagihan hanya terbit untuk pelanggan yang dusunnya terisi.<br>5. Tagihan punya baris. `nominal` adalah jumlah baris. `sisa` selalu `nominal - terbayar - nominal_dipindah`, dijaga constraint. |
 | **Link Invoice Publik** | Token acak 128 bit, unik, dan dapat diputar bila bocor. Contoh bentuk: `https://billing.isp.com/inv/` diikuti 32 karakter hex. Halaman tanpa login hanya menampilkan nomor tagihan, nama depan, nominal, status, dan jatuh tempo. |
 | **Aksi "Kirim Invoice" (Direct WA)** | Di halaman admin, terdapat tombol **[📲 Kirim Invoice]**: Saat diklik, browser **langsung membuka aplikasi WhatsApp** (atau WhatsApp Web) ke nomor HP pelanggan dengan pesan siap kirim yang sudah terisi otomatis (nama, rincian tagihan, batas bayar, dan link invoice publik). |
 | **Riwayat Lengkap di Portal** | Seluruh riwayat tagihan masa lalu (lunas, belum bayar, cicilan) tersusun rapi di **Portal Pelanggan** setelah pelanggan melakukan login. |
 | **Jatuh Tempo Default** | Tanggal 11 pukul 00:00 Asia/Jakarta. Nilainya kolom `date`, bukan timestamp UTC. |
 | **Status Tagihan** | `belum_bayar`, `sebagian`, `menunggu_verifikasi`, `lunas`, `batal`. Batal wajib menulis audit nilai sebelum dan sesudah. |
 | **Mekanisme Parsial** | `nominal`, `terbayar`, dan `sisa` disimpan sebagai integer rupiah dan diubah dalam satu transaksi. |
-| **Status Tunggakan** | Isolir hanya menghitung tagihan `langganan` yang `periode_penuh` dan `terbayar = 0`. Tagihan penuh yang sudah dibayar sebagian, tagihan `konversi`, biaya pasang, dan invoice `manual` tidak memutus layanan. Sisa pada tagihan yang tidak dihitung isolir memberi tanda `tidak_tertib` dan rekomendasi siklus `prabayar`. |
+| **Status Tunggakan** | Isolir hanya menghitung tagihan `langganan` yang `periode_penuh` dan `terbayar = 0`. Tagihan penuh yang sudah dibayar sebagian, tagihan `konversi`, `biaya_pasang`, `prorata`, dan invoice `manual` tidak memutus layanan, tetapi tetap piutang. Sisa pada tagihan yang tidak dihitung isolir memberi tanda `tidak_tertib` dan rekomendasi siklus `prabayar`. |
 
 #### Hutang mengendap
 
-Prorata cuti, prorata aktivasi, biaya aktivasi, prorata aktivasi prabayar, dan diskon adalah hitungan sementara. Nominalnya masuk tabel `HUTANG_MENGENDAP`. Nominal itu tidak masuk `TAGIHAN`, tidak masuk `sisa`, tidak dicetak di invoice, dan tidak ditagihkan kolektor.
+Biaya aktivasi dan diskon adalah hitungan sementara. Nominalnya masuk tabel `HUTANG_MENGENDAP`. Nominal itu tidak masuk `TAGIHAN`, tidak masuk `sisa`, tidak dicetak di invoice, dan tidak ditagihkan kolektor. Prorata dan biaya pasang tidak masuk tabel ini. Keduanya terbit sebagai tagihan `prorata` dan `biaya_pasang`.
 
-Periode layanan yang penuh tetap menjadi tagihan. Cuti tidak membatalkan invoice dan tidak memindahkan invoice menjadi saldo mengendap. Catatan prorata cuti, aktivasi, atau isolir yang dibuat sistem adalah baris evaluasi baru. Invoice yang sudah terbit tetap apa adanya. Memindahkan sisa invoice ke saldo mengendap hanya dilakukan manual oleh Super Admin atau `auditor_finansial`. Invoice berstatus `batal` tidak dapat dipindahkan. Uang yang sudah masuk pada invoice tidak ditulis lagi sebagai saldo mengendap.
+Periode layanan yang penuh tetap menjadi tagihan. Cuti tidak membatalkan invoice dan tidak memindahkan invoice menjadi saldo mengendap. Catatan diskon atau biaya aktivasi yang dibuat sistem adalah baris evaluasi baru. Invoice yang sudah terbit tetap apa adanya. Memindahkan sisa invoice ke saldo mengendap hanya dilakukan manual oleh Super Admin atau `auditor_finansial`. Invoice berstatus `batal` tidak dapat dipindahkan. Uang yang sudah masuk pada invoice tidak ditulis lagi sebagai saldo mengendap.
 
 Rumus catatan memakai pembagian integer yang sama. Baris hitungan otomatis unik per pelanggan, jenis, dan `tanggal_mulai`. Setiap baris menyimpan `arah` (`masuk` atau `keluar`) dan `saldo_akhir`. Saldo mengendap pelanggan adalah `saldo_akhir` baris terbaru. Aktivitas baru tidak menimpa baris lama. Edit oleh Super Admin atau `auditor_finansial` adalah pengecualian, dan saldo sesudahnya dihitung ulang.
 
@@ -138,7 +138,7 @@ Status `mengendap` dan `closed` sama-sama tetap di dalam saldo. Menutup baris, t
 
 Pemegang `koreksi_keuangan` dapat menutup baris menjadi `closed`. Admin Wilayah hanya untuk dusun di `user_wilayah`.
 
-Hanya Super Admin dan `auditor_finansial` yang dapat menambah, mengedit, dan menghapus record saldo mengendap. Mereka juga dapat membuat invoice dari baris `mengendap`, membuka kembali baris `closed`, dan memindahkan sisa tagihan menjadi saldo mengendap. Alasan wajib. Satu sumber hanya boleh dijadikan invoice satu kali. Catatan otomatis dari cuti, aktivasi, dan isolir tetap dibuat oleh sistem sebagai baris evaluasi baru. Catatan itu tidak membatalkan dan tidak memindahkan invoice.
+Hanya Super Admin dan `auditor_finansial` yang dapat menambah, mengedit, dan menghapus record saldo mengendap. Mereka juga dapat membuat invoice dari baris `mengendap`, membuka kembali baris `closed`, dan memindahkan sisa tagihan menjadi saldo mengendap. Alasan wajib. Satu sumber hanya boleh dijadikan invoice satu kali. Catatan otomatis diskon dan biaya aktivasi tetap dibuat oleh sistem sebagai baris evaluasi baru. Catatan itu tidak membatalkan dan tidak memindahkan invoice.
 
 Menambah record menulis baris `masuk` dan menaikkan `saldo_akhir`.
 
@@ -146,7 +146,7 @@ Mengedit mengubah nominal, jenis, tanggal, atau keterangan pada record yang ada.
 
 Menghapus menghilangkan record dari tabel. Audit menyimpan salinan nilai record itu sebelum hilang. Semua baris saldo pelanggan itu dikunci `lockForUpdate`, lalu `saldo_akhir` record sesudahnya dihitung ulang. Hapus ditolak bila record itu sudah menjadi sumber tagihan `konversi` yang belum `batal`. Bila record harus tetap ada, gunakan status `closed` atau edit, bukan hapus.
 
-Membuat invoice hanya dari baris berstatus `mengendap`. Jatuh temponya adalah tanggal konversi. Sistem menambah baris `keluar` sebesar nominal sumber. Catatan sumber tetap ada. `saldo_akhir` berkurang. Sistem membuat `TAGIHAN` bertipe `konversi`, `periode_penuh = false`, status `belum_bayar`, dan nominal yang sama. Tagihan itu diperlakukan seperti biaya pemasangan: dapat ditagih, tidak dihitung isolir, dan tidak menambah `N`. Konversi ini tidak menulis `MUTASI_KAS` dan tidak mengubah dompet.
+Membuat invoice hanya dari baris berstatus `mengendap`. Jatuh temponya adalah tanggal konversi. Sistem menambah baris `keluar` sebesar nominal sumber. Catatan sumber tetap ada. `saldo_akhir` berkurang. Sistem membuat `TAGIHAN` bertipe `konversi`, `periode_penuh = false`, status `belum_bayar`, dan nominal yang sama. Tagihan itu diperlakukan seperti `biaya_pasang`: piutang yang dapat ditagih, tidak dihitung isolir, dan tidak menambah `N`. Konversi ini tidak menulis `MUTASI_KAS` dan tidak mengubah dompet.
 
 Konversi tagihan menjadi saldo memindahkan `sisa` yang belum dibayar. `nominal` dan `terbayar` tidak diubah. `sisa` menjadi `nominal - terbayar - nominal_dipindah`. Status menjadi `lunas` hanya bila `terbayar + nominal_dipindah` sama dengan `nominal`. Uang yang sudah masuk tetap pada tagihan dan tidak masuk saldo mengendap. Konversi ini tidak menulis `MUTASI_KAS`.
 
@@ -160,16 +160,16 @@ Buku yang berubah pada tiap aksi:
 | Saldo menjadi tagihan | Tagihan `konversi` terbit | Berkurang | Tidak berubah | Tidak berubah |
 | Tagihan menjadi saldo | Sisa berkurang | Bertambah | Tidak berubah | Tidak berubah |
 
-Contoh pelanggan A. Cuti mulai 12 November. Hitungan hari sebelum cuti adalah Rp30.000.
+Contoh pelanggan A. Layanan nyala kembali 12 November dengan biaya aktivasi Rp30.000.
 
 ```
-12 Nov  prorata_cuti masuk     30.000   saldo 30.000
+12 Nov  biaya_aktivasi masuk   30.000   saldo 30.000
 ```
 
-Invoice November tidak terbit. Hutang tagihan tidak bertambah. Bila catatan itu dikonversi menjadi tagihan:
+Hutang tagihan tidak bertambah. Bila catatan itu dikonversi menjadi tagihan:
 
 ```
-12 Nov  prorata_cuti masuk        30.000   saldo 30.000
+12 Nov  biaya_aktivasi masuk      30.000   saldo 30.000
 15 Nov  konversi_ke_tagihan keluar 30.000   saldo 0
 Tagihan konversi                         30.000   belum_bayar
 ```
@@ -178,7 +178,15 @@ Catatan 12 November tetap ada. Saldo mengendap menjadi 0. Rp30.000 kini tagihan 
 
 #### Hari yang tidak ditagihkan
 
-Hari cuti dan hari dalam rentang putus tidak membuat tagihan baru. Rentang putus mulai pada `hari_mulai_putus` dan berakhir sehari sebelum layanan nyala. Cuti tidak membatalkan invoice yang sudah terbit dan tidak memindahkannya menjadi saldo mengendap. Nilai evaluasi hari sebelum cuti, sesudah aktivasi di tengah periode, atau sebelum putus dapat disimpan sebagai catatan saldo mengendap tanpa mengubah invoice. Bulan tanpa tagihan tidak punya kuitansi. Tidak adanya tagihan tidak membuka isolir.
+Hari cuti dan hari dalam rentang putus tidak membuat tagihan baru. Rentang putus mulai pada `hari_mulai_putus` dan berakhir sehari sebelum layanan nyala. Cuti tidak membatalkan invoice yang sudah terbit dan tidak memindahkannya menjadi saldo mengendap. Hari layanan pada periode yang tidak punya invoice `langganan` penuh ditagih sebagai `prorata`: hari sebelum cuti bila generate bulanan sudah tahu tanggal cuti, dan hari sesudah layanan nyala di tengah periode. Diskon hari sebelum putus tetap catatan saldo mengendap tanpa mengubah invoice. Bulan tanpa tagihan tidak punya kuitansi. Tidak adanya tagihan tidak membuka isolir. Tagihan `prorata` tidak dihitung tunggakan isolir.
+
+Contoh pelanggan A. Cuti mulai 12 November sudah tercatat sebelum generate 1 November. Hitungan 1–11 November adalah Rp30.000.
+
+```
+1 Nov   tagihan prorata 1-11 November   30.000   belum_bayar, piutang
+```
+
+Invoice `langganan` November tidak terbit.
 
 Cuti tidak menggeser `next_isolir`. Selama cuti scheduler tidak memutus. Setelah cuti berakhir, `hitung_isolir_berikutnya` dipakai lagi.
 
@@ -187,14 +195,14 @@ Contoh lain: putus sejak 10 November, Desember tanpa hari layanan, kembali 8 Jan
 ```
 November 1-9         catatan diskon_isolir, bukan invoice
 Desember             tidak terbit
-8-31 Januari         catatan prorata_aktivasi, bukan invoice
+8-31 Januari         tagihan prorata, piutang, tidak dihitung isolir
 ```
 
 #### Simulasi biaya aktivasi dan tunggakan
 
 Di halaman pelanggan, Admin Global dan Admin Wilayah punya tombol **Simulasi biaya aktivasi + tunggakan**. Tombol ini memanggil `hitung_isolir_berikutnya` dan tidak menulis apa pun.
 
-Admin mengisi tanggal aktivasi. Kosong berarti hari ini di Asia/Jakarta. Hasilnya memisahkan sisa tagihan yang masih terbuka dari hitungan sementara: prorata aktivasi, biaya pasang, dan prorata aktivasi prabayar. Hitungan sementara diberi label saldo mengendap dan tidak dijumlahkan ke hutang. Pada `tanggal_tetap`, `hari_isolir` tidak pindah. Pada `prabayar`, pratinjau menambah 30 hari dari tanggal aktivasi bila tidak ada penundaan toleransi. Angka itu belum disimpan.
+Admin mengisi tanggal aktivasi. Kosong berarti hari ini di Asia/Jakarta. Hasilnya memisahkan tiga kelompok: sisa tagihan yang masih terbuka, tagihan `prorata` dan `biaya_pasang` yang akan terbit sebagai piutang, dan biaya aktivasi yang diberi label saldo mengendap. Hanya dua kelompok pertama yang dijumlahkan ke hutang. Tagihan yang akan terbit tidak mengubah jadwal isolir. Pada `tanggal_tetap`, `hari_isolir` tidak pindah. Pada `prabayar`, pratinjau menambah 30 hari dari tanggal aktivasi bila tidak ada penundaan toleransi. Angka itu belum disimpan.
 
 Menyimpan tagihan, catatan mengendap, dan pembayaran tetap lewat aksi yang terpisah.
 
@@ -401,9 +409,9 @@ Kolektor di lapangan, admin di ponsel, admin di PC, dan kios kantor memakai aksi
 
 `idempotency_key` dibuat saat lembar bayar dibuka dan dipakai ulang bila jaringan gagal. Server mengembalikan pembayaran yang sudah ada bila kunci itu sudah tersimpan. Layar menampilkan "Belum tercatat" selama server belum menjawab. Uang tidak disimpan hanya di ponsel.
 
-Daftar tagih mengambil pelanggan pada cakupan petugas yang masih punya tagihan langganan `belum_bayar`, `sebagian`, atau `menunggu_verifikasi`. Urutan daftar adalah dusun, lalu nama. Satu halaman 30 pelanggan. Kartu hanya memuat nama, nomor pelanggan, dusun, jumlah tagihan terbuka, dan sisa tertua. Rincian tagihan dimuat saat pelanggannya dibuka.
+Daftar tagih mengambil pelanggan pada cakupan petugas yang masih punya tagihan `langganan`, `prorata`, `biaya_pasang`, `konversi`, atau `manual` berstatus `belum_bayar`, `sebagian`, atau `menunggu_verifikasi`. Urutan daftar adalah dusun, lalu nama. Satu halaman 30 pelanggan. Kartu hanya memuat nama, nomor pelanggan, dusun, jumlah tagihan terbuka, dan sisa tertua. Rincian tagihan dimuat saat pelanggannya dibuka.
 
-Alokasi tetap ke tagihan langganan terlama. Petugas mengisi nominal. Sistem yang membagi. `N` tidak dipilih di layar.
+Alokasi melunasi tagihan `langganan` terlama lebih dulu, lalu tagihan lain yang masih bersisa, urut `jatuh_tempo`. Petugas mengisi nominal. Sistem yang membagi. `N` tidak dipilih di layar.
 
 ##### Kolektor, ponsel
 
@@ -605,7 +613,7 @@ Sistem billing ISP dengan ribuan klien wajib memiliki mekanisme migrasi data cep
 #### A. Export & Import Data Pelanggan (Excel / CSV)
 * **Import Pelanggan Massal (Migrasi Data Awal):**
   * Disediakan tombol **[📥 Download Template Pelanggan (.xlsx)]** dengan panduan kolom.
-  * Mendukung impor ribuan pelanggan sekaligus (nama, no hp, alamat, dusun/desa, paket, IP statis, mikrotik).
+  * Mendukung impor ribuan pelanggan sekaligus (nama, no hp, alamat, dusun/desa, paket, IP statis, mikrotik). Baris pelanggan aktif atau baris yang membawa tagihan ditolak bila dusun kosong. Baris tanpa dusun hanya boleh masuk sebagai `menunggu_verifikasi_pusat`.
   * **Validasi Cerdas Baris per Baris:** Menampilkan laporan baris mana yang sukses dan baris mana yang gagal beserta alasannya secara spesifik.
   * Pemrosesan impor ribuan baris dijalankan via **Background Queue** agar browser tidak mengalami *HTTP Timeout*.
 * **Export Data Pelanggan:**
@@ -852,7 +860,7 @@ Sistem billing dapat dihubungkan ke server NMS eksternal (Zabbix atau LibreNMS) 
 | **Proteksi Anti-Flapping (Anti-Tiket Berceceran)** | Jika link optik mengalami kondisi putus-nyambung berulang dalam hitungan detik (*flapping*), billing menyatukannya ke dalam 1 tiket yang sama dengan riwayat timestamp kedap-kedip, mencegah terciptanya puluhan tiket duplikat. |
 | **Deduplikasi Saat Zabbix Re-Up (*Late-Arrival Event Correlation*)** | **Anti-Tabrakan Jika Zabbix Hidup Terlambat:**<br>Jika watchdog billing sudah lebih dulu membuat tiket & membunyikan alarm saat kabel putus, lalu server Zabbix baru menyala dan mengirim webhook:<br>1. **Korelasi Aset & Status:** Sistem billing mengecek `asset_key` (`mikrotik_id` + `interface`). Jika sudah ada tiket berstatus `open`/`dikerjakan`, billing **DILARANG membuat tiket baru** dan **DILARANG mengirim notifikasi ulang** (tidak ada blast pesan Telegram, WA, atau suara alarm baru).<br>2. **Tautkan Event ID Zabbix & Tampilkan di Dashboard Aktif:** Billing meng-update tiket eksisting dengan menyematkan `zabbix_event_id` dan menyisipkan jejak audit langsung ke **Timeline / Card Tiket yang sedang dikerjakan** secara real-time (Livewire/WebSocket):<br>`[14:15 WIB] ℹ️ Zabbix Online Validation: Server Zabbix kembali UP & menautkan Event ID #10842 ke tiket ini. Sensor eksternal tersinkronisasi.`<br>Staf NOC / teknisi yang sedang memantau dashboard langsung melihat update tersebut tanpa terganggu notifikasi ganda. Saat kabel selesai disambung, webhook `RESOLVED` dari Zabbix tetap bisa menutup tiket secara otomatis! |
 | **Auto-Resolve (Penutupan Tiket Otomatis)** | Saat kabel selesai disambung dan link kembali hidup, Zabbix mengirim event `RESOLVED`. Tiket di aplikasi billing otomatis bertransisi menjadi hijau (*Normal Kembali*). |
-| **Deteksi Cerdas: Mati Lampu PLN vs. Kabel Optik Putus (*Power Outage vs Fiber Cut*)** | **Membedakan Pemadaman Listrik Warga dari Kerusakan Fisik Kabel:**<br>1. **Sinyal Dying Gasp (TR-069 ACS):** Saat listrik rumah warga padam, sisa daya kapasitor modem ONT memancarkan sinyal darurat terakhir (*Dying Gasp: Power Off*) ke ACS sebelum mati total.<br>2. **Korelasi Kluster Wilayah:** Jika $\ge 3$ modem di satu RT/RW/Dusun serentak mengirim sinyal mati daya dalam rentang waktu 3 menit, sistem **DILARANG menerbitkan tiket kabel putus**.<br>3. **Status Peta Otomatis:** Sistem menyematkan status khusus pada peta GIS: `[⚡ MATI LAMPU PLN - Area Dusun Krajan]`. Garis kabel fiber tetap hijau, ikon rumah diberi badge petir kuning.<br>4. **Pencegahan False-Alarm:** Mencegah teknisi panik disuruh memanjat tiang mencari kabel putus padahal gardu PLN setempat sedang padam! |
+| **Deteksi Cerdas: Mati Lampu PLN vs. Kabel Optik Putus (*Power Outage vs Fiber Cut*)** | **Membedakan Pemadaman Listrik Warga dari Kerusakan Fisik Kabel:**<br>1. **Sinyal dying gasp dari OLT:** Saat listrik rumah padam, ONT mengirim dying gasp ke OLT lewat jaringan PON sebelum mati. Sesi TR-069 ke ACS tidak sempat terjadi, jadi ACS bukan sumbernya. Zabbix membaca kejadian itu dari trap SNMP atau syslog OLT.<br>2. **Korelasi kluster di Zabbix:** Bila 3 ONT atau lebih di satu dusun mengirim dying gasp dalam 3 menit, trigger Zabbix menandai problem mati lampu. Problem itu tidak dikirim sebagai alert kabel putus, dan billing tidak menerbitkan tiket kabel putus darinya.<br>3. **Tanpa penyimpanan di aplikasi:** Database aplikasi tidak punya tabel atau kolom untuk dying gasp maupun status mati lampu. Kejadian itu tercatat di log alert Zabbix. Bila webhook-nya menyangkut pelanggan yang sedang punya tiket atau agenda terbuka, kejadian itu ditambahkan ke log tiket atau agenda tersebut.<br>4. **Peta:** Saat lapisan peta dibuka, billing membaca problem mati lampu yang sedang terbuka di Zabbix dan memberi badge pada rumah terkait. Garis kabel fiber tetap hijau. Badge tidak disimpan. |
 | **Keamanan Endpoint Webhook** | `POST /api/v1/webhook/monitoring/zabbix` dan `POST /api/v1/webhook/monitoring/optical-alert` menolak permintaan sebelum menulis data bila header `X-Monitoring-Secret` salah, IP pengirim di luar daftar, atau payload tidak sesuai skema. |
 
 #### J. Arsitektur Pemantauan Redaman Optik: Polling, Histori, & Alerting (Zabbix vs. LibreNMS vs. Native Billing)
@@ -1731,7 +1739,8 @@ erDiagram
 
 Kendala unik pada tabel:
 
-- `TAGIHAN`: `(pelanggan_id, tipe_tagihan, layanan_mulai)`, `no_tagihan`, dan `public_token`
+- `TAGIHAN`: `(pelanggan_id, tipe_tagihan, layanan_mulai)`, `no_tagihan`, dan `public_token`. `tipe_tagihan` berisi `langganan`, `prorata`, `biaya_pasang`, `konversi`, atau `manual`.
+- `PELANGGAN`: `dusun_id` wajib terisi bila `status_langganan` bukan `menunggu_verifikasi_pusat`, dijaga `CHECK` constraint.
 - `HUTANG_MENGENDAP`: baris hitungan otomatis unik pada `(pelanggan_id, jenis, tanggal_mulai)`. Satu `sumber_id` hanya satu baris konversi.
 - `PEMBAYARAN`: `idempotency_key`, serta `gateway_transaction_id` bila terisi
 - `PERIODE_KAS`: `(user_id, periode)`
