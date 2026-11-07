@@ -2,6 +2,7 @@
 
 ## 2026-11-07
 
+- Buku admin kantor memakai `MUTASI_KAS`. Kolektor, admin PC, admin ponsel, dan kios memakai satu aksi `catat_pembayaran`.
 - `N` hanya dihitung dari tagihan yang menjadi lunas. Isolir tanggal 1 berjalan setelah autopay selesai.
 - Satu `PEMBAYARAN` terbagi ke banyak `ALOKASI_PEMBAYARAN`.
 - `tidak_serempak` ikut nyala bila syarat putus gugur. Perpanjangan satu bulan menulis `isolir_ditunda_hingga`.

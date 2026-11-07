@@ -1,6 +1,6 @@
 # 🌐 Rancangan Aplikasi Billing Internet — Microprovider / Mini ISP
 
-> Versi: 2.11 — Tahap 1: Definisi Fitur
+> Versi: 2.12 — Tahap 1: Definisi Fitur
 > Tanggal: 7 November 2026
 
 Keputusan yang mengunci uang, isolir, peran, dan batas tahap awal ada di `docs/decisions/001-keputusan-review-spesifikasi.md`. Jika kalimat di bawah berbeda dengan keputusan itu, keputusan yang dipakai.
@@ -312,6 +312,67 @@ Bila Budi hanya menyetor Rp300.000, sisa Budi tetap Rp80.000 dan statusnya `seba
 Setoran kolektor ke kasir memindahkan sisa. Uang perusahaan tidak dihitung dua kali. Ringkasan yang belum masuk bank adalah jumlah `sisa di tangan` seluruh penerima. Setoran kasir ke bank menurunkan sisa kasir tanpa menambah saldo penerima lain. User yang sama tidak boleh mengonfirmasi kedua sisi.
 
 Penerimaan tunai, pembatalan, dan konfirmasi setoran memakai satu transaksi dengan `lockForUpdate` pada periode yang diubah. Pembatalan pembayaran pada periode yang masih terbuka menulis mutasi balik. Periode yang sudah `disetor` tidak diubah. Pembatalan sesudah itu membuka mutasi balik pada periode terbuka penerima yang sama. Setiap penerima punya batas saldo di tangan. Penerimaan baru ditolak bila sisa ditambah nominal itu melewati batas.
+
+#### Buku transaksi admin di kantor
+
+Uang yang belum masuk bank tetap satu saldo pada admin yang memegangnya. Buku yang dibaca admin adalah `MUTASI_KAS` untuk periode kasnya sendiri. Tidak ada tabel kedua untuk laci kantor.
+
+Setiap baris menyimpan waktu UTC, admin, jenis, lawan, arah, nominal, saldo sesudah baris itu, referensi, kanal, dan keterangan. Layar menampilkan waktu dalam Asia/Jakarta. `saldo_akhir` pada baris terakhir sama dengan `sisa_di_tangan` periode itu. Keduanya ditulis dalam transaksi yang sama.
+
+| Jenis | Lawan | Efek pada sisa admin |
+|---|---|---|
+| `terima_tunai_pelanggan` | Pelanggan | Bertambah. Tagihan dialokasi lewat `PEMBAYARAN`. |
+| `terima_setoran_kolektor` | Kolektor | Bertambah. Sisa kolektor berkurang dengan nominal yang sama. |
+| `terima_serah_admin` | Admin lain | Bertambah. Sisa pengirim berkurang. |
+| `keluar_serah_admin` | Admin lain | Berkurang. |
+| `keluar_setoran_bank` | User lain yang mengonfirmasi | Berkurang. Tidak menambah saldo orang lain. |
+| `batal` | Pembayaran asal | Membalik baris yang masih pada periode terbuka. |
+
+Transfer bank, payment gateway, potongan dompet, dan komisi reseller tidak menulis baris ini. Uang tunai yang dipegang pelanggan untuk mengisi dompet tetap masuk sebagai `terima_tunai_pelanggan`, lalu saldo dompet dicatat di `DOMPET_PELANGGAN_MUTASI`.
+
+Layar buku kas admin menampilkan tanggal, sisa sekarang, tiga jumlah (dari pelanggan, dari setoran, sudah keluar), dan tabel urut waktu. Baris bisa dibuka ke pembayaran atau setoran asal. Tombol setor ke bank memakai sisa sekarang. Tombol itu tidak bisa dikonfirmasi oleh admin yang sama.
+
+Contoh laci Ani, 7 November 2026.
+
+| Waktu | Jenis | Lawan | Masuk | Keluar | Saldo |
+|---|---|---|---:|---:|---:|
+| 09:10 | `terima_tunai_pelanggan` | CUST-00123 Budi Santoso | 150.000 | 0 | 150.000 |
+| 16:40 | `terima_setoran_kolektor` | Kolektor Budi | 380.000 | 0 | 530.000 |
+| 17:05 | `keluar_setoran_bank` | Dikonfirmasi Admin Global | 0 | 530.000 | 0 |
+
+Total dari pelanggan Rp150.000 dan total dari setoran Rp380.000 tetap tersimpan. Yang kembali 0 adalah saldo.
+
+#### Penagihan satu jalur
+
+Kolektor di lapangan, admin di ponsel, admin di PC, dan kios kantor memakai aksi `catat_pembayaran` yang sama. Layar tidak menulis tagihan atau kas sendiri. `PEMBAYARAN.kanal` berisi `kolektor_mobile`, `admin_mobile`, `admin_pc`, atau `kios`. Kanal hanya penanda asal, bukan tabel terpisah.
+
+`idempotency_key` dibuat saat lembar bayar dibuka dan dipakai ulang bila jaringan gagal. Server mengembalikan pembayaran yang sudah ada bila kunci itu sudah tersimpan. Layar menampilkan "Belum tercatat" selama server belum menjawab. Uang tidak disimpan hanya di ponsel.
+
+Daftar tagih mengambil pelanggan pada cakupan petugas yang masih punya tagihan langganan `belum_bayar`, `sebagian`, atau `menunggu_verifikasi`. Urutan daftar adalah dusun, lalu nama. Satu halaman 30 pelanggan. Kartu hanya memuat nama, nomor pelanggan, dusun, jumlah tagihan terbuka, dan sisa tertua. Rincian tagihan dimuat saat pelanggannya dibuka.
+
+Alokasi tetap ke tagihan langganan terlama. Petugas mengisi nominal. Sistem yang membagi. `N` tidak dipilih di layar.
+
+##### Kolektor, ponsel
+
+Layar awal menampilkan tiga angka: jumlah pelanggan belum tertagih, sisa di tangan, dan jumlah rupiah yang masih terbuka pada tugas hari itu. Pencarian memakai nama, nomor pelanggan, atau nomor HP.
+
+Kartu pelanggan menampilkan nama, nomor, patokan alamat, sisa tagihan tertua, dan badge bila layanan `putus`. Satu tombol utama `Catat bayar`. Nominal awal adalah sisa tagihan tertua. Level wewenang menentukan metode yang muncul. Setelah server menjawab, layar menampilkan sisa tagihan dan sisa di tangan. Cetak struk bersifat pilihan.
+
+Tiga tindakan tanpa uang tetap ada: rumah kosong, belum bayar, dan ajuan perpanjangan. Setor harian mengisi nominal dengan seluruh sisa di tangan. Petugas boleh menurunkan nominal. Sisa yang tidak dibawa tetap tampil sebelum dikirim.
+
+##### Admin kantor, PC
+
+Layar terbagi dua. Kiri untuk cari pelanggan dan mencatat pembayaran. Kanan untuk buku mutasi hari ini dan antrean setoran kolektor. Setoran menunggu menampilkan nama kolektor, nominal, dan waktu ajuan. Admin menghitung uang, lalu mengonfirmasi nominal yang benar-benar diterima. Selisih tetap di sisa kolektor.
+
+##### Admin kantor, ponsel
+
+Isi dan aksinya sama dengan PC, dalam satu kolom. Layar awal adalah sisa di tangan dan antrean setoran, karena itu pekerjaan admin saat tidak di meja. Cari pelanggan ada di langkah berikut.
+
+##### Kios kantor
+
+Kios adalah sesi admin yang sedang bertugas di meja. Menu yang ada hanya cari pelanggan dan buku kas hari ini. Pencarian memakai nomor pelanggan, nomor HP, atau pindai token invoice. Layar menampilkan nama, nomor pelanggan, dan daftar tagihan terbuka.
+
+Jumlah yang dihitung adalah uang yang pelanggan serahkan. Bila jumlah itu lebih besar dari sisa tagihan, pilihan bawaan adalah kembalian. Yang masuk laci hanya sebesar tagihan yang dialokasi. Pilihan kedua memasukkan kelebihan ke dompet pelanggan, dan laci bertambah sebesar uang yang diserahkan. Bila jumlah yang diserahkan lebih kecil, pembayaran tercatat sebagian. Kios tidak menampilkan NIK atau daftar pelanggan lain.
 
 ---
 
@@ -1262,6 +1323,7 @@ erDiagram
         string status_verifikasi
         string idempotency_key
         string gateway_transaction_id
+        string kanal
         bigint reverses_id
         decimal latitude
         decimal longitude
@@ -1302,9 +1364,14 @@ erDiagram
         bigint periode_kas_id
         bigint pembayaran_id
         bigint setoran_id
+        string jenis
+        bigint lawan_user_id
+        bigint lawan_pelanggan_id
+        string kanal
         string arah
         bigint nominal
         bigint saldo_akhir
+        string keterangan
         datetime dibuat_pada
     }
 

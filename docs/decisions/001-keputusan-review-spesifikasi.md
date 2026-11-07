@@ -34,6 +34,7 @@ Versi 0.3 cara kerja dan versi 1.2 logika isolir memakai tiga default isolir, sa
 - Menyalakan layanan membatalkan baris putus yang belum dijalankan. `hari_isolir` yang melewati akhir bulan menjadi hari terakhir bulan itu. Entri address-list tidak punya timeout.
 - `status_layanan` memakai `tidak_serempak` untuk router yang tidak selesai bersama. `sebagian` tetap status pembayaran.
 - Uang tunai kasir, admin, dan kolektor masuk periode kas per tanggal Asia/Jakarta. Sisa menjadi 0 hanya bila user lain mengonfirmasi setoran sebesar sisa. Total periode tetap tersimpan. Transfer, dompet, gateway, dan komisi reseller tidak masuk saldo di tangan.
+- Buku laci admin adalah `MUTASI_KAS`. Kolektor, admin PC, admin ponsel, dan kios kantor memanggil `catat_pembayaran`. `kanal` hanya penanda asal.
 
 ## Konsekuensi
 
@@ -46,4 +47,4 @@ Versi 0.3 cara kerja dan versi 1.2 logika isolir memakai tiga default isolir, sa
 - SNMP OLT adalah cadangan aktif bila `snmp_supported` benar. Callback gateway dan webhook pemantauan ditolak sebelum transaksi bila tanda atau sumber tidak sah.
 - Perubahan WiFi dan reboot modem menunggu NOC. Password ajuan terenkripsi dan tidak masuk teks audit. Google tidak membuat akun pelanggan. Admin wilayah hanya menyetujui pembayaran pada dusunnya.
 
-`docs/cara-kerja.md` dan `docs/logika-isolir.md` versi 2.11 mengikuti keputusan ini. Perubahan berikutnya dicatat sebagai keputusan baru, bukan dengan menghidupkan kalimat lama.
+`docs/cara-kerja.md` versi 2.12 dan `docs/logika-isolir.md` versi 2.11 mengikuti keputusan ini. Perubahan berikutnya dicatat sebagai keputusan baru, bukan dengan menghidupkan kalimat lama.
