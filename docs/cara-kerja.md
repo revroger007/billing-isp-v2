@@ -1,6 +1,6 @@
 # 🌐 Rancangan Aplikasi Billing Internet — Microprovider / Mini ISP
 
-> Versi: 2.23 — Tahap 1: Definisi Fitur
+> Versi: 2.24 — Tahap 1: Definisi Fitur
 > Tanggal: 7 November 2026
 
 Keputusan yang mengunci uang, isolir, peran, dan batas tahap awal ada di `docs/decisions/001-keputusan-review-spesifikasi.md`. Jika kalimat di bawah berbeda dengan keputusan itu, keputusan yang dipakai.
@@ -116,20 +116,20 @@ flowchart TD
 | Fitur | Keterangan |
 |---|---|
 | **Format No. Tagihan** | `INV-YYYY-MM-XXXX` (contoh: `INV-2026-11-0001`). Nomor diambil dari sequence per periode di dalam transaksi database. Nomor yang sudah terbit tidak dipakai ulang, termasuk tagihan yang dibatalkan. |
-| **Generate Otomatis & Manual** | 1. **Otomatis bulanan:** satu tagihan `langganan` untuk satu periode penuh. Kendala unik `(pelanggan_id, tipe_tagihan, layanan_mulai)` ada pada tabel `TAGIHAN`. Periode yang terpotong cuti, aktivasi, atau isolir tidak menjadi tagihan.<br>2. **Invoice manual:** biaya di luar langganan (penggantian router, denda) menjadi tagihan `manual` dan tidak dihitung `batas_tunggakan`.<br>3. Tagihan punya baris. `nominal` adalah jumlah baris. `sisa` selalu `nominal - terbayar`, dijaga constraint. |
+| **Generate Otomatis & Manual** | 1. **Otomatis bulanan:** satu tagihan `langganan` untuk satu periode penuh. Kendala unik `(pelanggan_id, tipe_tagihan, layanan_mulai)` ada pada tabel `TAGIHAN`. Periode yang terpotong cuti, aktivasi, atau isolir tidak menjadi tagihan.<br>2. **Invoice manual:** biaya di luar langganan (penggantian router, denda) menjadi tagihan `manual` dan tidak dihitung `batas_tunggakan`.<br>3. Tagihan punya baris. `nominal` adalah jumlah baris. `sisa` selalu `nominal - terbayar - nominal_dipindah`, dijaga constraint. |
 | **Link Invoice Publik** | Token acak 128 bit, unik, dan dapat diputar bila bocor. Contoh bentuk: `https://billing.isp.com/inv/` diikuti 32 karakter hex. Halaman tanpa login hanya menampilkan nomor tagihan, nama depan, nominal, status, dan jatuh tempo. |
 | **Aksi "Kirim Invoice" (Direct WA)** | Di halaman admin, terdapat tombol **[📲 Kirim Invoice]**: Saat diklik, browser **langsung membuka aplikasi WhatsApp** (atau WhatsApp Web) ke nomor HP pelanggan dengan pesan siap kirim yang sudah terisi otomatis (nama, rincian tagihan, batas bayar, dan link invoice publik). |
 | **Riwayat Lengkap di Portal** | Seluruh riwayat tagihan masa lalu (lunas, belum bayar, cicilan) tersusun rapi di **Portal Pelanggan** setelah pelanggan melakukan login. |
 | **Jatuh Tempo Default** | Tanggal 11 pukul 00:00 Asia/Jakarta. Nilainya kolom `date`, bukan timestamp UTC. |
 | **Status Tagihan** | `belum_bayar`, `sebagian`, `menunggu_verifikasi`, `lunas`, `batal`. Batal wajib menulis audit nilai sebelum dan sesudah. |
 | **Mekanisme Parsial** | `nominal`, `terbayar`, dan `sisa` disimpan sebagai integer rupiah dan diubah dalam satu transaksi. |
-| **Status Tunggakan** | Tagihan langganan berstatus `belum_bayar`, `sebagian`, atau `menunggu_verifikasi` masing-masing dihitung satu tunggakan sampai lunas. Hutang mengendap tidak dihitung. |
+| **Status Tunggakan** | Tagihan `langganan` berstatus `belum_bayar`, `sebagian`, atau `menunggu_verifikasi` dihitung tunggakan sampai lunas. Tagihan `konversi` dapat ditagih, tetapi tidak dihitung `batas_tunggakan`. Hutang mengendap tidak dihitung. |
 
 #### Hutang mengendap
 
 Prorata cuti, prorata aktivasi, biaya aktivasi, prorata aktivasi prabayar, dan diskon adalah hitungan sementara. Nominalnya masuk tabel `HUTANG_MENGENDAP`. Nominal itu tidak masuk `TAGIHAN`, tidak masuk `sisa`, tidak dicetak di invoice, dan tidak ditagihkan kolektor.
 
-Periode layanan yang penuh tetap menjadi tagihan. Bila invoice periode itu sudah terbit lalu peristiwanya membuat periode tidak penuh, invoice itu menjadi `batal` dalam transaksi yang sama dengan pembuatan catatan. Uang yang sudah masuk di atas invoice yang dibatalkan kembali ke dompet.
+Periode layanan yang penuh tetap menjadi tagihan. Cuti tidak membatalkan invoice dan tidak memindahkan invoice menjadi saldo mengendap. Catatan prorata cuti, aktivasi, atau isolir yang dibuat sistem adalah baris evaluasi baru. Invoice yang sudah terbit tetap apa adanya. Memindahkan sisa invoice ke saldo mengendap hanya dilakukan manual oleh Super Admin atau `auditor_finansial`. Invoice berstatus `batal` tidak dapat dipindahkan. Uang yang sudah masuk pada invoice tidak ditulis lagi sebagai saldo mengendap.
 
 Rumus catatan memakai pembagian integer yang sama. Baris hitungan otomatis unik per pelanggan, jenis, dan `tanggal_mulai`. Setiap baris menyimpan `arah` (`masuk` atau `keluar`) dan `saldo_akhir`. Saldo mengendap pelanggan adalah `saldo_akhir` baris terbaru. Aktivitas baru tidak menimpa baris lama. Edit oleh Super Admin atau `auditor_finansial` adalah pengecualian, dan saldo sesudahnya dihitung ulang.
 
@@ -137,17 +137,27 @@ Status `mengendap` dan `closed` sama-sama tetap di dalam saldo. Menutup baris, t
 
 Pemegang `koreksi_keuangan` dapat menutup baris menjadi `closed`. Admin Wilayah hanya untuk dusun di `user_wilayah`.
 
-Hanya Super Admin dan `auditor_finansial` yang dapat menambah, mengedit, dan menghapus record saldo mengendap. Mereka juga dapat membuat invoice dari baris `mengendap`, membuka kembali baris `closed`, dan memindahkan sisa tagihan menjadi saldo mengendap. Alasan wajib. Satu sumber hanya boleh dijadikan invoice satu kali. Catatan otomatis dari cuti, aktivasi, dan isolir tetap dibuat oleh sistem.
+Hanya Super Admin dan `auditor_finansial` yang dapat menambah, mengedit, dan menghapus record saldo mengendap. Mereka juga dapat membuat invoice dari baris `mengendap`, membuka kembali baris `closed`, dan memindahkan sisa tagihan menjadi saldo mengendap. Alasan wajib. Satu sumber hanya boleh dijadikan invoice satu kali. Catatan otomatis dari cuti, aktivasi, dan isolir tetap dibuat oleh sistem sebagai baris evaluasi baru. Catatan itu tidak membatalkan dan tidak memindahkan invoice.
 
 Menambah record menulis baris `masuk` dan menaikkan `saldo_akhir`.
 
-Mengedit mengubah nominal, jenis, tanggal, atau keterangan pada record yang ada. Audit menyimpan nilai sebelum dan sesudah. `saldo_akhir` record itu dan semua record sesudahnya untuk pelanggan yang sama dihitung ulang dalam transaksi yang sama. Baris lain tidak dihapus.
+Mengedit mengubah nominal, jenis, tanggal, atau keterangan pada record yang ada. Audit menyimpan nilai sebelum dan sesudah. Semua baris saldo pelanggan itu dikunci `lockForUpdate`. `saldo_akhir` record itu dan semua record sesudahnya dihitung ulang dalam transaksi yang sama. Baris lain tidak dihapus.
 
-Menghapus menghilangkan record dari tabel. Audit menyimpan salinan nilai record itu sebelum hilang. `saldo_akhir` semua record sesudahnya untuk pelanggan yang sama dihitung ulang. Hapus ditolak bila record itu sudah menjadi sumber tagihan `konversi` yang belum `batal`. Bila record harus tetap ada, gunakan status `closed` atau edit, bukan hapus.
+Menghapus menghilangkan record dari tabel. Audit menyimpan salinan nilai record itu sebelum hilang. Semua baris saldo pelanggan itu dikunci `lockForUpdate`, lalu `saldo_akhir` record sesudahnya dihitung ulang. Hapus ditolak bila record itu sudah menjadi sumber tagihan `konversi` yang belum `batal`. Bila record harus tetap ada, gunakan status `closed` atau edit, bukan hapus.
 
-Membuat invoice hanya dari baris berstatus `mengendap`. Sistem menambah baris `keluar` sebesar nominal sumber. Catatan sumber tetap ada. `saldo_akhir` berkurang. Sistem membuat `TAGIHAN` bertipe `konversi`, status `belum_bayar`, dan nominal yang sama. Tagihan itu dihitung tunggakan dan dapat ditagih.
+Membuat invoice hanya dari baris berstatus `mengendap`. Jatuh temponya adalah tanggal konversi. Sistem menambah baris `keluar` sebesar nominal sumber. Catatan sumber tetap ada. `saldo_akhir` berkurang. Sistem membuat `TAGIHAN` bertipe `konversi`, status `belum_bayar`, dan nominal yang sama. Tagihan itu dapat ditagih kolektor. Tagihan itu tidak dihitung `batas_tunggakan` dan tidak menambah `N`. Konversi ini tidak menulis `MUTASI_KAS` dan tidak mengubah dompet.
 
-Konversi tagihan menjadi saldo memindahkan `sisa` yang belum dibayar. Bila belum ada pembayaran, tagihan menjadi `batal` dan satu baris `masuk` menambah saldo sebesar sisa itu. Bila sudah ada pembayaran, `nominal` tagihan diturunkan menjadi `terbayar`, statusnya `lunas`, dan sisa yang dipindahkan masuk ke saldo mengendap. Uang yang sudah masuk tidak ikut pindah.
+Konversi tagihan menjadi saldo memindahkan `sisa` yang belum dibayar. `nominal` dan `terbayar` tidak diubah. `sisa` menjadi `nominal - terbayar - nominal_dipindah`. Status menjadi `lunas` hanya bila `terbayar + nominal_dipindah` sama dengan `nominal`. Uang yang sudah masuk tetap pada tagihan dan tidak masuk saldo mengendap. Konversi ini tidak menulis `MUTASI_KAS`.
+
+Buku yang berubah pada tiap aksi:
+
+| Aksi | Tagihan | Saldo mengendap | Dompet | Kas di tangan |
+|---|---|---|---|---|
+| Bayar tunai | Sisa berkurang | Tidak berubah | Tidak berubah | Bertambah |
+| Bayar transfer atau gateway | Sisa berkurang | Tidak berubah | Tidak berubah | Tidak berubah |
+| Autopay dompet | Sisa berkurang | Tidak berubah | Berkurang | Tidak berubah |
+| Saldo menjadi tagihan | Tagihan `konversi` terbit | Berkurang | Tidak berubah | Tidak berubah |
+| Tagihan menjadi saldo | Sisa berkurang | Bertambah | Tidak berubah | Tidak berubah |
 
 Contoh pelanggan A. Cuti mulai 12 November. Hitungan hari sebelum cuti adalah Rp30.000.
 
@@ -163,11 +173,11 @@ Invoice November tidak terbit. Hutang tagihan tidak bertambah. Bila catatan itu 
 Tagihan konversi                         30.000   belum_bayar
 ```
 
-Catatan 12 November tetap ada. Saldo mengendap menjadi 0. Rp30.000 kini hutang tagihan. Bila tagihan itu dikembalikan ke saldo mengendap, tagihan menjadi `batal` dan saldo bertambah lagi Rp30.000. Profil menampilkan seluruh baris.
+Catatan 12 November tetap ada. Saldo mengendap menjadi 0. Rp30.000 kini tagihan yang dapat ditagih, tetapi tidak dihitung isolir dan tidak menambah `N`. Bila tagihan itu dikembalikan ke saldo mengendap, nominal tagihan tetap, sisa pindah, dan saldo mengendap bertambah lagi Rp30.000. Profil menampilkan seluruh baris.
 
 #### Hari yang tidak ditagihkan
 
-Hari cuti dan hari dalam rentang putus tidak masuk tagihan. Rentang putus mulai pada `hari_mulai_putus` dan berakhir sehari sebelum layanan nyala. Nilai hari layanan sebelum cuti, sesudah aktivasi di tengah periode, atau sebelum putus disimpan sebagai hutang mengendap. Bulan tanpa hari layanan tidak punya invoice dan tidak punya kuitansi. Tidak adanya tagihan tidak membuka isolir.
+Hari cuti dan hari dalam rentang putus tidak membuat tagihan baru. Rentang putus mulai pada `hari_mulai_putus` dan berakhir sehari sebelum layanan nyala. Cuti tidak membatalkan invoice yang sudah terbit dan tidak memindahkannya menjadi saldo mengendap. Nilai evaluasi hari sebelum cuti, sesudah aktivasi di tengah periode, atau sebelum putus dapat disimpan sebagai catatan saldo mengendap tanpa mengubah invoice. Bulan tanpa tagihan tidak punya kuitansi. Tidak adanya tagihan tidak membuka isolir.
 
 Cuti tidak menggeser `isolir_berikutnya`. Selama cuti scheduler tidak memutus. Setelah cuti berakhir, `hitung_isolir_berikutnya` dipakai lagi.
 
@@ -214,7 +224,7 @@ Pelanggan dapat ditandai `tanda_transfer`: `sering_salah_bukti` atau `bukti_pals
 
 Tanda pada pembayaran transfer hanya tiga nilai: `belum_diverifikasi`, `sudah_diverifikasi`, dan `ditolak`. Tanda itu tampil di daftar pembayaran, di invoice admin, dan di profil pelanggan. Pembayaran tunai tidak memakai tanda ini.
 
-Pemegang `koreksi_keuangan` mengubah tanda menjadi `sudah_diverifikasi` atau `ditolak`. Persetujuan pada tagihan `menunggu_verifikasi` sekaligus membuat tagihan `lunas`. Penolakan pada tagihan yang sudah `lunas` membuat pembayaran balik dan mengembalikan sisa tagihan. Alasan penolakan wajib diisi.
+Pemegang `koreksi_keuangan` mengubah tanda menjadi `sudah_diverifikasi` atau `ditolak`. Persetujuan pada tagihan `menunggu_verifikasi` sekaligus membuat tagihan `lunas`. Pada mode `tidak_wajib`, tagihan boleh `lunas` dan layanan boleh nyala saat tanda masih `belum_diverifikasi`. Komisi reseller dan penambahan `N` pada siklus `prabayar` menunggu tanda `sudah_diverifikasi`. Penolakan pada tagihan yang sudah `lunas` membalik pembayaran, komisi yang sudah masuk, dan pergeseran `isolir_berikutnya` dalam satu transaksi. Alasan penolakan wajib diisi.
 
 ---
 
@@ -435,7 +445,7 @@ Hanya Super Admin dan `auditor_finansial` yang dapat menambah, mengedit, dan men
 
 Menambah invoice membuat `TAGIHAN` baru dengan nomor dari sequence. `terbayar` mulai dari 0 dan `sisa` sama dengan `nominal`. Periode penuh memakai tipe `langganan` dan tetap mematuhi kunci unik `(pelanggan_id, tipe_tagihan, layanan_mulai)`. Biaya di luar periode memakai tipe `manual`.
 
-Mengedit dapat mengubah nominal, jatuh tempo, keterangan, dan status. `sisa` dihitung ulang dari `nominal - terbayar`. Edit ditolak bila nominal baru lebih kecil dari `terbayar`. `terbayar` tidak diubah lewat edit. Perubahan uang yang sudah masuk memakai pembayaran balik.
+Mengedit dapat mengubah nominal, jatuh tempo, keterangan, dan status. `sisa` dihitung ulang dari `nominal - terbayar - nominal_dipindah`. Edit ditolak bila nominal baru lebih kecil dari `terbayar + nominal_dipindah`. `terbayar` tidak diubah lewat edit. Perubahan uang yang sudah masuk memakai pembayaran balik.
 
 Menghapus menghilangkan invoice dari tabel, bersama baris tagihannya. Nomor yang sudah terbit tidak dipakai ulang. Hapus ditolak bila `terbayar` masih lebih dari 0. Bila invoice harus tetap tercatat, gunakan edit, bukan hapus.
 
@@ -450,7 +460,7 @@ Menghapus menghilangkan invoice dari tabel, bersama baris tagihannya. Nomor yang
 |---|---|
 | **Data Reseller** | Nama mitra, kontak, nomor rekening bank/e-wallet untuk pencairan dana |
 | **Penetapan Komisi** | Nominal flat dalam rupiah, atau `basis_poin` integer dengan 10000 = 100%. Contoh 40% disimpan sebagai 4000. Hasilnya `(nominal * basis_poin + 5000) / 10000`, rupiah integer. |
-| **Auto-Credit Dompet** | Saldo reseller bertambah saat tagihan langganan `lunas`, lewat baris mutasi. Pembayaran sebagian tidak mencairkan komisi. Pembatalan menulis mutasi balik. Komisi yang sudah dicairkan menjadi piutang reseller dan tidak memaksa saldo minus. |
+| **Auto-Credit Dompet** | Saldo reseller bertambah saat tagihan langganan `lunas` dan, untuk transfer, tanda buktinya `sudah_diverifikasi`. Pembayaran sebagian tidak mencairkan komisi. Pembayaran yang kemudian ditolak menulis mutasi balik. Komisi yang sudah dicairkan menjadi piutang reseller dan tidak memaksa saldo minus. |
 | **Mutasi Saldo** | Riwayat detail keluar-masuk saldo dompet per transaksi tagihan |
 | **Portal Reseller** | Reseller dapat login untuk melihat daftar klien mereka, status bayar, saldo, dan riwayat komisi |
 | **Pengajuan Pencairan (Payout)**| Reseller mengajukan penarikan saldo komisi |
@@ -1083,6 +1093,8 @@ flowchart LR
 | **Pegawai Kantor / NOC** | Gaji pokok bulanan, tunjangan jabatan, lembur piket NOC, dan potongan kasbon. |
 | **Slip Gaji Digital** | Setiap pegawai dapat melihat rincian gaji dan mengunduh **Slip Gaji resmi berformat PDF** dari portal akun masing-masing. |
 
+Gaji, pencairan komisi reseller, dan belanja operasional yang dibayar dari rekening bank tidak masuk `MUTASI_KAS`. Bila dibayar dari laci admin atau kolektor, sistem menulis baris `keluar` pada periode kas orang itu sebelum setoran dihitung. Jenisnya `keluar_gaji`, `keluar_komisi`, atau `keluar_operasional`. Sisa di tangan baru kembali 0 setelah uang yang masih di laci disetor utuh.
+
 ---
 
 ### 21. ⚙️ Konfigurasi Sistem, Pengaturan Global, & Maintenance Mode
@@ -1361,6 +1373,7 @@ erDiagram
         string periode
         bigint nominal
         bigint terbayar
+        bigint nominal_dipindah
         bigint sisa
         date jatuh_tempo
         date layanan_mulai

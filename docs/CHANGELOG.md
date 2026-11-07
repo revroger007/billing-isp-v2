@@ -2,7 +2,9 @@
 
 ## 2026-11-07
 
-- Menghapus record saldo mengendap atau invoice menghilangkan record itu. Bila record harus tetap ada, gunakan diskon `closed` atau edit. Hapus invoice ditolak bila masih ada uang yang masuk.
+- Cuti tidak membatalkan invoice dan tidak memindahkannya menjadi saldo mengendap. Pemindahan itu manual oleh Super Admin atau `auditor_finansial`.
+- Tagihan `konversi` dapat ditagih, tetapi tidak dihitung isolir dan tidak menambah `N`. Komisi reseller dan `N` transfer menunggu bukti `sudah_diverifikasi`.
+- Pengeluaran gaji, komisi, dan operasional dari laci menulis baris keluar pada `MUTASI_KAS`. Konversi saldo mengendap tidak menulis kas.
 - Super Admin dan `auditor_finansial` dapat menambah, mengedit, dan menghapus record saldo mengendap, serta membuat invoice dari record yang masih `mengendap`. Edit menyimpan nilai lama dan menghitung ulang saldo sesudahnya.
 - Saldo mengendap dan tagihan dapat dikonversi dua arah. Catatan asal tetap ada. Konversi ke tagihan mengurangi saldo. Konversi dari tagihan menambah saldo.
 - Bukti transfer bawaan langsung `lunas` dengan tanda `belum_diverifikasi`. Mode wajib, tanda pelanggan, atau kolektor level 2 menahan status `menunggu_verifikasi`.
